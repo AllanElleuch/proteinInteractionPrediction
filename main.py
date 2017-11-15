@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import svm
-
+import random
 hydropathy = { 'A': 1.8,'R':-4.5,'N':-3.5,'D':-3.5,'C': 2.5,
         'Q':-3.5,'E':-3.5,'G':-0.4,'H':-3.2,'I': 4.5,
         'L': 3.8,'K':-3.9,'M': 1.9,'F': 2.8,'P':-1.6,
@@ -74,8 +74,9 @@ def getFeatures(data):
             y_data.append(average_value / window_size)
 
         # YList.append([max(y_data)/len(y_data) ,sum(y_data)/len(y_data) ])
+        YList.append(random.randint(1, 10))
 
-        YList.append(max(y_data)/len(y_data) *100)
+        # YList.append(max(y_data)/len(y_data) *100)
         # YList.append(sum(y_data)/len(y_data) *100)
 
     pairs = []
@@ -84,9 +85,9 @@ def getFeatures(data):
         pairs.append(YList[i])
         pairs.append(YList[i+1])
     # print(pairs)
-    X = np.array(pairs).reshape(-1, 1) # formation en pairs .reshape(-1, 1)
-    scaler = MinMaxScaler(feature_range=(0, 1)) # Réduction
-    rescaledX = scaler.fit_transform(X)
+    X = np.array(pairs).reshape(-1, 2) # formation en pairs .reshape(-1, 1)
+    # scaler = MinMaxScaler(feature_range=(0, 1)) # Réduction
+    # rescaledX = scaler.fit_transform(X)
 
 
     # print(rescaledX)
@@ -108,8 +109,8 @@ def read(file,number=-1):
 
 
 
-dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",-1 )
-dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",-1 )
+dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",300 )
+dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",300 )
 
 features = getFeatures(dataBrutePositive)# SUppose que données sont des pairs bout à bout
 y=[1 for x in range(len(features))]
@@ -121,17 +122,19 @@ clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimator
 
 clf.fit(features,y )
 clf.fit(features2,y2 )
+# print(features2)
 
-
-dataBruteTest = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-E-prunned.txt",-1 )
+dataBruteTest = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-E-prunned.txt",100 )
 features3= getFeatures(dataBruteTest) # SUppose que données sont des pairs bout à bout
 
 
 nbFeatures = len(features3)
-yTest=[1 for x in range(nbFeatures//2)]+[0 for x in range(nbFeatures//2)]
-print(clf.get_params())
+yTest=[1 for x in range(nbFeatures)]
+# yTest=[1 for x in range(nbFeatures//2)]+[0 for x in range(nbFeatures//2)]
+# print(clf.get_params())
 
-prediction = clf.score(features3,yTest)
+
+prediction = clf.score(features,y)
 print(prediction)
 # print(len(dataBrutePositive))
 # print(len(dataBruteTest))
