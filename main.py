@@ -10,6 +10,8 @@ import random
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 import pandas
+from scipy import sparse
+
 hydropathy = { 'A': 1.8,'R':-4.5,'N':-3.5,'D':-3.5,'C': 2.5,
         'Q':-3.5,'E':-3.5,'G':-0.4,'H':-3.2,'I': 4.5,
         'L': 3.8,'K':-3.9,'M': 1.9,'F': 2.8,'P':-1.6,
@@ -109,10 +111,10 @@ def getFeatures(data,train=True):
 
     window_size = 16
     half_window = (window_size-1)//2
-    features=[]
     # for seq in dataCharge: # liste avec valeur hydropathy => lissage des valeurs
     #     features.append(sum(seq)/len(seq))
     for charged,hydro in zip(dataCharge,dataHydropathy): # liste avec valeur hydropathy => lissage des valeurs
+        features=[]
         features.append(sum(charged)/len(charged))
         # features.append(sum(hydro)/len(hydro))
         YList.append(features)
@@ -120,10 +122,13 @@ def getFeatures(data,train=True):
     pairsSeq = []
     for i in range(0,len(listSeq),2):
         pairsSeq.append(listSeq[i]+listSeq[i+1])
+
     if train:
         tfidf_matrix = vectorizer.fit_transform(pairsSeq)
     else :
         tfidf_matrix = vectorizer.transform(pairsSeq)
+
+
     # for seq in dataHydropathy: # liste avec valeur hydropathy => lissage des valeurs
     #     features.append(sum(seq)/len(seq))
 
@@ -158,9 +163,13 @@ def getFeatures(data,train=True):
         # pairs.append(YList[i+1])
     # print(pairs)
     # print(pairs)
-    X = np.array(pairs).reshape(-1, 2) # formation en pairs .reshape(-1, 1)
+    X = np.array(pairs).reshape(-1,len(pairs[0])) # formation en pairs .reshape(-1, 1)
+    print(X.shape)
+    print(tfidf_matrix.shape)
 
-    
+    final = sparse.hstack((tfidf_matrix, X))
+    print(final.shape)
+
     # tfidf_matrix
     # scaler = MinMaxScaler(feature_range=(0, 1)) # Réduction
     # rescaledX = scaler.fit_transform(X)
@@ -168,9 +177,10 @@ def getFeatures(data,train=True):
     # print(X[0])
 
     # print(rescaledX)
-    print(tfidf_matrix)
+    # print(tfidf_matrix)
     print(vectorizer.get_feature_names())
-    return tfidf_matrix
+    print(X)
+    return final
 
 
 # generator = SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta")
@@ -186,9 +196,11 @@ def read(file,number=-1):
     return data
 
 
-dataSetSize = 500
-dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",dataSetSize)
-dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",dataSetSize )
+dataSetSize = 300
+dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
+
+dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",dataSetSizeTraining)
+dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",dataSetSizeTraining )
 dataMerge = dataBrutePositive + dataBruteNegative
 print(dataMerge)
 # features = getFeatures(dataBrutePositive)# SUppose que données sont des pairs bout à bout
@@ -224,6 +236,7 @@ if dataSetSize==-1:
 else :
     yTest=[1 for x in range(nbFeatures)]
 
+print(len(yTest))
 prediction = clf.score(features3,yTest)
 print(prediction)
 
