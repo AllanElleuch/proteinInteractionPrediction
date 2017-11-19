@@ -77,6 +77,14 @@ charge = {
 # data = list(SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta"))
 
 vectorizer = CountVectorizer(analyzer='char_wb', ngram_range=(5, 5)) #ngram_vectorizer
+vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,
+                             stop_words='english')
+def splitString(x,i):
+    res=""
+    k=7
+    for i in range(0,len(x),k):
+        res=res+x[i:i+k]+" "
+    return res
 
 def getFeatures(data,train=True):
     YList = []
@@ -85,7 +93,7 @@ def getFeatures(data,train=True):
     listSeq=[]
     for record in data:
         seq =record.seq.tostring()
-        listSeq.append(seq)
+        listSeq.append(splitString(seq,8))
         hydropathySequence=[]
         chargeSequence=[]
 
@@ -108,10 +116,14 @@ def getFeatures(data,train=True):
         features.append(sum(charged)/len(charged))
         # features.append(sum(hydro)/len(hydro))
         YList.append(features)
+
+    pairsSeq = []
+    for i in range(0,len(listSeq),2):
+        pairsSeq.append(listSeq[i]+listSeq[i+1])
     if train:
-        tfidf_matrix = vectorizer.fit_transform(listSeq)
+        tfidf_matrix = vectorizer.fit_transform(pairsSeq)
     else :
-        tfidf_matrix = vectorizer.transform(listSeq)
+        tfidf_matrix = vectorizer.transform(pairsSeq)
     # for seq in dataHydropathy: # liste avec valeur hydropathy => lissage des valeurs
     #     features.append(sum(seq)/len(seq))
 
@@ -147,6 +159,8 @@ def getFeatures(data,train=True):
     # print(pairs)
     # print(pairs)
     X = np.array(pairs).reshape(-1, 2) # formation en pairs .reshape(-1, 1)
+
+    
     # tfidf_matrix
     # scaler = MinMaxScaler(feature_range=(0, 1)) # Réduction
     # rescaledX = scaler.fit_transform(X)
@@ -154,7 +168,8 @@ def getFeatures(data,train=True):
     # print(X[0])
 
     # print(rescaledX)
-
+    print(tfidf_matrix)
+    print(vectorizer.get_feature_names())
     return tfidf_matrix
 
 
@@ -171,29 +186,31 @@ def read(file,number=-1):
     return data
 
 
-dataSetSize = 100
+dataSetSize = 500
 dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",dataSetSize)
 dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",dataSetSize )
-
-features = getFeatures(dataBrutePositive)# SUppose que données sont des pairs bout à bout
-y=[1 for x in range(features.shape[0])]
-features2 = getFeatures(dataBruteNegative) # SUppose que données sont des pairs bout à bout
-y2=[0 for x in range(features2.shape[0])]
+dataMerge = dataBrutePositive + dataBruteNegative
+print(dataMerge)
+# features = getFeatures(dataBrutePositive)# SUppose que données sont des pairs bout à bout
+y=[1 for x in range(len(dataBrutePositive)//2)]
+# features2 = getFeatures(dataBruteNegative) # SUppose que données sont des pairs bout à bout
+y2=[0 for x in range(len(dataBruteNegative)//2)]
 clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=50,max_features=None)
 # clf = svm.SVC()
+featuresTest = getFeatures(dataMerge)
 
 # kernel SVM + kernel RDF
 from scipy import *
-merge = vstack((features,features2))
-print(merge)
-clf.fit(merge,y+y2 )
+# merge = vstack((features,features2))
+# print(merge)
+clf.fit(featuresTest,y+y2 )
 
 # clf.fit(features,y )
 # clf.fit(features2,y2 )
 # print(features2)
 
 dataBruteTest = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-E-prunned.txt",dataSetSize )
-features2= getFeatures(dataBruteTest) # SUppose que données sont des pairs bout à bout
+features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
 
 
 # print(features3)
@@ -207,14 +224,7 @@ if dataSetSize==-1:
 else :
     yTest=[1 for x in range(nbFeatures)]
 
-# print(clf.get_params())
-print(features3.shape)
-print(len(yTest))
-# print(features2)
-# print(y)
 prediction = clf.score(features3,yTest)
-# prediction = clf.predict(features3)
-
 print(prediction)
 
 import matplotlib.pyplot as plt
