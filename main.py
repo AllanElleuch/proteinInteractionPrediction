@@ -7,12 +7,22 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import svm
 import random
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+import pandas
 hydropathy = { 'A': 1.8,'R':-4.5,'N':-3.5,'D':-3.5,'C': 2.5,
         'Q':-3.5,'E':-3.5,'G':-0.4,'H':-3.2,'I': 4.5,
         'L': 3.8,'K':-3.9,'M': 1.9,'F': 2.8,'P':-1.6,
         'S':-0.8,'T':-0.7,'W':-0.9,'Y':-1.3,'V': 4.2 }
+# RMN recurent neural network
+#keras =>
+#https://keras.io/layers/recurrent/
 
-
+#Faire tfidf concaténer =>  les deux vecteur sur abscisse
+#Permuter les valeurs bonne et mauvaise non col 1 et col2 mettre le plus faible en premier et le deuxième plus grand en premier
+#Entrainer dans un sens puis dans l'autre
+#ngram
+#ngram tf idf bigram
 mapHydropathy={
 'Isoleucine'	:4.5,
 'Valine'	:4.2,
@@ -36,63 +46,116 @@ mapHydropathy={
 'Arginine'	:-4.5
 }
 
+charge = {
 
+'A': 58.2, #ALA ,
+'G': 79.3, #GLY
+'S': 71.7,  #SER
+'T': 59.5, #THR
+'L': 45.1, #LEU
+'I': 46.3, #ILE
+'V': 47.5, #VAL
+'N': 66, #ASN
+'Q': 59.9, #GLN
+'R' : 46.2, #ARG
+'H': 59.3, #HIS
+'W':  52.5, #TRP
+'F': 56.2, # PHE
+'Y': 59.6,  #TYR
+'E':  55.8, #GLU
+'D': 61, #ASP
+'K':  47.8 , #LYS
+'P': 51.4, #PRO
+'C':  55.4 , #CYS
+'M':  53.4  #MET
+
+}
 
 
 # for record in SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta"):
 #     data.append(record)
 # data = list(SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta"))
 
+vectorizer = CountVectorizer(analyzer='char_wb', ngram_range=(5, 5)) #ngram_vectorizer
 
-def getFeatures(data):
+def getFeatures(data,train=True):
     YList = []
     dataHydropathy=[]
+    dataCharge=[]
+    listSeq=[]
     for record in data:
-        seq =record.seq
-        y=[]
+        seq =record.seq.tostring()
+        listSeq.append(seq)
+        hydropathySequence=[]
+        chargeSequence=[]
 
         for residue in seq: #X for unknow amino acid residue and U for selenocysteine
 
             if(residue!=  'X' and residue!=  'U'):
-                y.append(hydropathy[residue])
+                hydropathySequence.append(hydropathy[residue])
+                chargeSequence.append(charge[residue])
 
-        dataHydropathy.append(y)
+        dataHydropathy.append(hydropathySequence)
+        dataCharge.append(chargeSequence)
 
 
-    window_size = 15
+    window_size = 16
     half_window = (window_size-1)//2
+    features=[]
+    # for seq in dataCharge: # liste avec valeur hydropathy => lissage des valeurs
+    #     features.append(sum(seq)/len(seq))
+    for charged,hydro in zip(dataCharge,dataHydropathy): # liste avec valeur hydropathy => lissage des valeurs
+        features.append(sum(charged)/len(charged))
+        # features.append(sum(hydro)/len(hydro))
+        YList.append(features)
+    if train:
+        tfidf_matrix = vectorizer.fit_transform(listSeq)
+    else :
+        tfidf_matrix = vectorizer.transform(listSeq)
+    # for seq in dataHydropathy: # liste avec valeur hydropathy => lissage des valeurs
+    #     features.append(sum(seq)/len(seq))
 
-    for seq in dataHydropathy: # liste avec valeur hydropathy => lissage des valeurs
-        num_residues = len(seq)
-        y_data = []
+        # num_residues = len(seq)
+
+        # hydro_smooth_data = []
 
 
-        for i in range(half_window, num_residues-half_window):
-            average_value = 0.0
-            for j in range(-half_window, half_window+1):
-                average_value += seq[i+j]
-            y_data.append(average_value / window_size)
+        # for i in range(half_window, num_residues-half_window):
+        #     average_value = 0.0
+        #     for j in range(-half_window, half_window+1):
+        #         average_value += seq[i+j]
+        #     hydro_smooth_data.append(average_value / window_size)
+        # YList.append(sum(y_data)/len(y_data))
 
-        # YList.append([max(y_data)/len(y_data) ,sum(y_data)/len(y_data) ])
-        YList.append(random.randint(1, 10))
+        # YList.append([max(y_data)/len(y_data)] )
+        # features.append(max(seq)/len(seq))
 
-        # YList.append(max(y_data)/len(y_data) *100)
-        # YList.append(sum(y_data)/len(y_data) *100)
+            # features.append(max(seq)/len(seq))
+        # YList.append(random.randint(1, 10))
+
+        # YList.append(max(y_data))
+
+
+        # YList.append(sum(seq)/len(seq))
 
     pairs = []
     for i in range(0,len(YList),2):
-        # pairs.append([YList[i]+YList[i+1]])
-        pairs.append(YList[i])
-        pairs.append(YList[i+1])
+
+        pairs.append(YList[i]+YList[i+1])
+        # pairs.append(YList[i])
+        # pairs.append(YList[i+1])
+    # print(pairs)
     # print(pairs)
     X = np.array(pairs).reshape(-1, 2) # formation en pairs .reshape(-1, 1)
+    # tfidf_matrix
     # scaler = MinMaxScaler(feature_range=(0, 1)) # Réduction
     # rescaledX = scaler.fit_transform(X)
-
+    # print(X.shape)
+    # print(X[0])
 
     # print(rescaledX)
 
-    return X
+    return tfidf_matrix
 
 
 # generator = SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta")
@@ -108,34 +171,61 @@ def read(file,number=-1):
     return data
 
 
-
-dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",300 )
-dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",300 )
+dataSetSize = 100
+dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",dataSetSize)
+dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",dataSetSize )
 
 features = getFeatures(dataBrutePositive)# SUppose que données sont des pairs bout à bout
-y=[1 for x in range(len(features))]
+y=[1 for x in range(features.shape[0])]
 features2 = getFeatures(dataBruteNegative) # SUppose que données sont des pairs bout à bout
-y2=[0 for x in range(len(features2))]
+y2=[0 for x in range(features2.shape[0])]
 clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=50,max_features=None)
 # clf = svm.SVC()
 
+# kernel SVM + kernel RDF
+from scipy import *
+merge = vstack((features,features2))
+print(merge)
+clf.fit(merge,y+y2 )
 
-clf.fit(features,y )
-clf.fit(features2,y2 )
+# clf.fit(features,y )
+# clf.fit(features2,y2 )
 # print(features2)
 
-dataBruteTest = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-E-prunned.txt",100 )
-features3= getFeatures(dataBruteTest) # SUppose que données sont des pairs bout à bout
+dataBruteTest = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-E-prunned.txt",dataSetSize )
+features2= getFeatures(dataBruteTest) # SUppose que données sont des pairs bout à bout
 
 
-nbFeatures = len(features3)
-yTest=[1 for x in range(nbFeatures)]
-# yTest=[1 for x in range(nbFeatures//2)]+[0 for x in range(nbFeatures//2)]
+# print(features3)
+
+
+nbFeatures = features3.shape[0]
+# yTest=[1 for x in range(nbFeatures)]
+# print(len([1 for x in range(nbFeatures)]))
+if dataSetSize==-1:
+    yTest=[1 for x in range(nbFeatures//2)]+[0 for x in range(nbFeatures//2)]
+else :
+    yTest=[1 for x in range(nbFeatures)]
+
 # print(clf.get_params())
+print(features3.shape)
+print(len(yTest))
+# print(features2)
+# print(y)
+prediction = clf.score(features3,yTest)
+# prediction = clf.predict(features3)
 
-
-prediction = clf.score(features,y)
 print(prediction)
+
+import matplotlib.pyplot as plt
+#résultat full data set  0.537194473964 de computation 320.96s] avec 2 features par prot => seq
+#0.529224229543 with just mean
+#0.515409139214 with max
+# plt.hist(features)
+# plt.hist(features2)
+# plt.show()
+
+
 # print(len(dataBrutePositive))
 # print(len(dataBruteTest))
 
