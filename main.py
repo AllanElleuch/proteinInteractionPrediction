@@ -1,6 +1,6 @@
 # pip install biopython
 from Bio import SeqIO
-from sklearn.preprocessing import Normalizer
+# from sklearn.preprocessing import Normalizer
 import pandas
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
@@ -11,7 +11,16 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 import pandas
 from scipy import sparse
+from proteinCharge import *
+from sklearn.feature_extraction.text import HashingVectorizer
+from gensim import  models, similarities
 
+
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.linear_model import SGDClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
 hydropathy = { 'A': 1.8,'R':-4.5,'N':-3.5,'D':-3.5,'C': 2.5,
         'Q':-3.5,'E':-3.5,'G':-0.4,'H':-3.2,'I': 4.5,
         'L': 3.8,'K':-3.9,'M': 1.9,'F': 2.8,'P':-1.6,
@@ -48,7 +57,7 @@ mapHydropathy={
 'Arginine'	:-4.5
 }
 
-charge = {
+tension = {
 
 'A': 58.2, #ALA ,
 'G': 79.3, #GLY
@@ -78,54 +87,112 @@ charge = {
 #     data.append(record)
 # data = list(SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta"))
 
-vectorizer = CountVectorizer(analyzer='char_wb', ngram_range=(5, 5)) #ngram_vectorizer
-vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,
-                             stop_words='english')
+# vectorizer = CountVectorizer(analyzer='char_wb', ngram_range=(5, 5)) #ngram_vectorizer
+# preVectorizer = vectorizer = HashingVectorizer(input='content',n_features=500,
+#                                        stop_words='english',
+#                                        alternate_sign=False, norm='l2',
+#                                        binary=False)
+tfidf = []
+
+pip = Pipeline([
+('vect', HashingVectorizer(n_features=3000,ngram_range=(1,5))),
+# ('vect', CountVectorizer()),
+('tfidf', TfidfTransformer( use_idf=True, smooth_idf=False, sublinear_tf=False)),
+# ('clf',TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=500))
+# ('tfidf', TfidfTransformer(norm='l2', use_idf=True, smooth_idf=True, sublinear_tf=False)),
+])
+parameters = {
+}
+vectorizer=pip
+# vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=75) # 964 pour 50 |958  pour 100
+# 0.783209351753 avec TfidfVectorizer 0.783209351753% accuracy with 40 000 training sequences and 1800 test sequences
+#0.835812964931 avec hashing vectorizer mais prend 2048.301s
 def splitString(x,i):
     res=""
-    k=7
+    k=12
     for i in range(0,len(x),k):
         res=res+x[i:i+k]+" "
     return res
 
+def pairSeq(listSeq):
+    pairsSeq = []
+    for i in range(0,len(listSeq),2):
+        pairsSeq.append(listSeq[i]+listSeq[i+1])
+    return listSeq
+
+
 def getFeatures(data,train=True):
     YList = []
     dataHydropathy=[]
+    datatension=[]
     dataCharge=[]
     listSeq=[]
     for record in data:
         seq =record.seq.tostring()
         listSeq.append(splitString(seq,8))
         hydropathySequence=[]
-        chargeSequence=[]
-
+        tensionSequence=[]
+        chargeSequence=0
+        seqSize=len(seq)
         for residue in seq: #X for unknow amino acid residue and U for selenocysteine
-
             if(residue!=  'X' and residue!=  'U'):
+                chargeSequence += calculateChargeAminoAcid(7,residue)
                 hydropathySequence.append(hydropathy[residue])
-                chargeSequence.append(charge[residue])
-
-        dataHydropathy.append(hydropathySequence)
+                tensionSequence.append(tension[residue]/seqSize)
         dataCharge.append(chargeSequence)
+        dataHydropathy.append(hydropathySequence)
+        datatension.append(tensionSequence)
 
+    print("min : " + str(len(min(listSeq))))
 
     window_size = 16
     half_window = (window_size-1)//2
     # for seq in dataCharge: # liste avec valeur hydropathy => lissage des valeurs
     #     features.append(sum(seq)/len(seq))
-    for charged,hydro in zip(dataCharge,dataHydropathy): # liste avec valeur hydropathy => lissage des valeurs
+    for tensionSeq,hydropathySeq,chargeSeq in zip(datatension,dataHydropathy,dataCharge): # liste avec valeur hydropathy => lissage des valeurs
         features=[]
-        features.append(sum(charged)/len(charged))
-        # features.append(sum(hydro)/len(hydro))
+        features.append(sum(tensionSeq)) # 0.568for 500 pairs
+        features.append(chargeSeq)  #0.596 for 1000 pairs
+        features.append(max(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
         YList.append(features)
 
     pairsSeq = []
     for i in range(0,len(listSeq),2):
         pairsSeq.append(listSeq[i]+listSeq[i+1])
 
+    # if train:
+    #
+    #     #
+    #
+    pairs = pairSeq(listSeq)
+    # dataMatrix=preVectorizer.transform(pairs)
+    #     print(dataMatrix.shape)
+        # tfidf_matrix = vectorizer.fit_transform(dataMatrix)
+        # tfidf_matrix = vectorizer.fit(listSeq)
+
+
+
+
+    # dataMatrix=preVectorizer.transform(listSeq)
+    # data = pairSeq(pairsSeq)
+    # print("Hashing vectorizer")
+    # print(len(data))
+    # print(dataMatrix.shape)
+    # print(dataMatrix[0].shape)
+    # print(dataMatrix)
+
+
     if train:
+
+        # tfidf = models.TfidfModel(listSeq)
+        # matrix = similarities.SparseMatrixSimilarity(tfidf[corpus], num_features=100)
+        # tfidf_matrix = vectorizer.fit_transform(dataMatrix)
+        # pip.fit_transform(listSeq)
         tfidf_matrix = vectorizer.fit_transform(pairsSeq)
+
     else :
+        # dataMatrix=preVectorizer.transform(pairsSeq)
+        # tfidf_matrix = vectorizer.transform(dataMatrix)
         tfidf_matrix = vectorizer.transform(pairsSeq)
 
 
@@ -153,7 +220,7 @@ def getFeatures(data,train=True):
         # YList.append(max(y_data))
 
 
-        # YList.append(sum(seq)/len(seq))
+        # YList.append(sum(seq)/len (seq))
 
     pairs = []
     for i in range(0,len(YList),2):
@@ -164,11 +231,11 @@ def getFeatures(data,train=True):
     # print(pairs)
     # print(pairs)
     X = np.array(pairs).reshape(-1,len(pairs[0])) # formation en pairs .reshape(-1, 1)
-    print(X.shape)
-    print(tfidf_matrix.shape)
+    # print(X.shape)
+    # print(tfidf_matrix.shape)
 
     final = sparse.hstack((tfidf_matrix, X))
-    print(final.shape)
+    # print(final.shape)
 
     # tfidf_matrix
     # scaler = MinMaxScaler(feature_range=(0, 1)) # Réduction
@@ -178,8 +245,8 @@ def getFeatures(data,train=True):
 
     # print(rescaledX)
     # print(tfidf_matrix)
-    print(vectorizer.get_feature_names())
-    print(X)
+    # print(vectorizer.get_feature_names())
+    # print(X)
     return final
 
 
@@ -191,41 +258,93 @@ def read(file,number=-1):
         for record in generator:
             data.append(record)
     else:
+
         for i in range(number):
-            data.append(next(generator))
+            try:
+                data.append(next(generator))
+            except:
+                print("Read error, no line")
+
     return data
 
 
-dataSetSize = 300
+dataSetSize = 100
 dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
-dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",dataSetSizeTraining)
-dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",dataSetSizeTraining )
+dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",20000)
+dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",20000 )
+# dataBrutePositive=dataBrutePositive[:len(dataBrutePositive)/2]
+# dataBruteNegative=dataBruteNegative[:len(dataBruteNegative)/2]
+from random import shuffle
+
 dataMerge = dataBrutePositive + dataBruteNegative
-print(dataMerge)
-# features = getFeatures(dataBrutePositive)# SUppose que données sont des pairs bout à bout
+
+print("data dataBrutePositive : " +str(len(dataBrutePositive)))
+print("data dataBruteNegative : " +str(len(dataBruteNegative)))
+
+# else
+#     dataMerge=dataMerge[:len(dataMerge)/2]
+# print("data merge : " +str(len(dataMerge)))
+# if(len(dataMerge)%2==0):
+    # print("slice : " + str(len(dataMerge)//2))
+    # dataMerge=dataMerge[:36480]
+print("data merge : " +str(len(dataMerge)))
+
+# y=[1 for x in range(36480//4)]
+# y2=[0 for x in range(36480//4)]
+
+
 y=[1 for x in range(len(dataBrutePositive)//2)]
-# features2 = getFeatures(dataBruteNegative) # SUppose que données sont des pairs bout à bout
+
 y2=[0 for x in range(len(dataBruteNegative)//2)]
+print("y1 : " + str(len(y)))
+print("y2 : " + str(len(y2)))
+# features = getFeatures(dataBrutePositive)# SUppose que données sont des pairs bout à bout
+# features2 = getFeatures(dataBruteNegative) # SUppose que données sont des pairs bout à bout
+
+
+print(len(y2))
 clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=50,max_features=None)
 # clf = svm.SVC()
 featuresTest = getFeatures(dataMerge)
-
-# kernel SVM + kernel RDF
 from scipy import *
+print("info1")
+print("features shapes :" + str(featuresTest.shape))
+# print("y size : " +  )
+clf.fit(featuresTest,y+y2 )
+
+# merge = hstack((featuresTest,y+y2))
+# np.random.shuffle(merge)
+# print("info")
+# merge = merge.reshape(featuresTest[0],-1)
+# pd = pandas.DataFrame(np.array(featuresTest))
+# print(pd)
+# print(merge.shape)
+# merge = merge.reshape(51,)
+# print(merge.shape)
+
+
+# x=np.hsplit(merge, 1)
+# print()
+# x2=sum(x[0:-1])
+
+# x=merge[:,[1, 9]]
+# print(x)
+# print(type(x))
+# kernel SVM + kernel RDF
 # merge = vstack((features,features2))
 # print(merge)
-clf.fit(featuresTest,y+y2 )
 
 # clf.fit(features,y )
 # clf.fit(features2,y2 )
 # print(features2)
 
-dataBruteTest = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-E-prunned.txt",dataSetSize )
+dataBruteTest = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-E-prunned.txt",-1 )
 features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
 
 
-# print(features3)
+
+# print("data brute test" + str(len(features3)))
 
 
 nbFeatures = features3.shape[0]
@@ -237,6 +356,7 @@ else :
     yTest=[1 for x in range(nbFeatures)]
 
 print(len(yTest))
+# prediction=-1
 prediction = clf.score(features3,yTest)
 print(prediction)
 
