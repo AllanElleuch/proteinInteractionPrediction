@@ -110,7 +110,7 @@ tfidf = []
 
 pip = Pipeline([
 # ('vect', HashingVectorizer(n_features=3000,ngram_range=(1,5))),
-('vect', HashingVectorizer(n_features=500,ngram_range=(1,2))),
+('vect', HashingVectorizer(n_features=3000,ngram_range=(1,2))),
 # ('vect', CountVectorizer()),
 ('tfidf', TfidfTransformer( use_idf=True, smooth_idf=False, sublinear_tf=False)),
 # ('clf',TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=500))
@@ -216,8 +216,8 @@ def getFeatures(data,train=True):
     #
     # else :
     #     tfidf_matrix = vectorizer.transform(pairsSeq)
-
-
+    #
+    #
     # final = sparse.hstack((tfidf_matrix, X))
 
     return X
@@ -241,11 +241,12 @@ def read(file,number=-1):
 
     return data
 
-clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=200,max_features='auto',oob_score = False, verbose = 0)
+clf = RandomForestClassifier(max_depth=125, random_state=0,n_jobs=-1,n_estimators=400,bootstrap=False,max_features='auto',oob_score = False, verbose = 0)
 
 CROSSVALIDATION = True
+GRIDVALIDATION = True
 dataSetSize = -1
-dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
+# dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
 dataBrutePositive = read("Supp-A-prunned.txt",3000 ) # size 73260
 dataBruteNegative = read("Supp-B-prunned.txt",3000 ) # size 72960 #TOTAL 146 220
@@ -257,8 +258,17 @@ y2=[0 for x in range(len(dataBruteNegative)//2)]
 print("y1 : " + str(len(y)))
 print("y2 : " + str(len(y2)))
 
-dataMerge = dataBrutePositive + dataBruteNegative
-
+def mergeInterlacing(list1,list2, y1,y2):
+    X = [None]*(len(list1)+len(list2))
+    Y = [None]*(len(y1)+len(y2))
+    X[::2] = list1
+    X[1::2] = list2
+    Y[::2] = y1
+    Y[1::2] = y2
+    return X,Y
+dataMerge , y_true_merge = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
+# dataMerge , y_true_merge =  dataBrutePositive + dataBruteNegative ,y +y2
+print("interlacing positive and negative set ")
 print("data merge : " +str(len(dataMerge)))
 
 
@@ -335,37 +345,52 @@ if CROSSVALIDATION:
     #     'n_estimators': [50,200, 700],
     #     'max_features': ['auto', 'sqrt', 'log2']
     # }
-    param_grid = {
-        'n_estimators': [200,400],
-        "min_samples_split" : [2,4], #def 2
-        "bootstrap": [True, False], #true
-          "min_samples_split": [2, 5], # 2
-          "min_samples_leaf": [2, 5], #2
-          "max_depth": [75, 125],
-        "max_features": ['auto', 'sqrt', 'log2']
-    }
-    scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score)}
+    if GRIDVALIDATION:
+        param_grid = {
+            'n_estimators': [200,300,400],
+            "min_samples_split" : [2,4], #def 2
+            "bootstrap": [True, False], #true
+              "min_samples_split": [2, 5,10], # 2
+              "min_samples_leaf": [2, 5,10], #2
+              "max_depth": [75, 125,None],
+            "max_features": ['auto', 'sqrt', 'log2']
+        }
+        scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score)}
 
 
-    CV_rfc = GridSearchCV(estimator=clf,
-                      param_grid=param_grid,
-                      scoring=scoring, cv=5, refit='AUC') #, refit='AUC'
-    CV_rfc.fit(featuresTest, y+y2)
-    results = str(CV_rfc.cv_results_)
-    results = "cv_results_ : " + results +"\n"
-    bestResults = str(CV_rfc.best_score_ )
-    bestResults = "best_score_ : " + bestResults
-    bestParam = str(CV_rfc.best_params_)+"\n"
-    bestParam = "best_params_ : " + bestParam +"\n"
-    print(bestResults)
-    print("Best parameters : ")
-    print(bestParam)
+        CV_rfc = GridSearchCV(estimator=clf,
+                          param_grid=param_grid,
+                          scoring=scoring, cv=5, refit='AUC') #, refit='AUC'
+        CV_rfc.fit(featuresTest, y_true_merge)
+        results = str(CV_rfc.cv_results_)
+        results = "cv_results_ : " + results +"\n"
+        bestResults = str(CV_rfc.best_score_ )
+        bestResults = "best_score_ : " + bestResults
+        bestParam = str(CV_rfc.best_params_)+"\n"
+        bestParam = "best_params_ : " + bestParam +"\n"
+        print(bestResults)
+        print("Best parameters : ")
+        print(bestParam)
 
 
-    save =   open(os.path.join(os.path.dirname(__file__), "crossValidation.txt"), 'w')
-    # save.write(results+"\n")
-    save.write(bestParam+"\n")
-    save.write(bestResults+"\n")
+        save =   open(os.path.join(os.path.dirname(__file__), "crossValidation.txt"), 'w')
+        # save.write(results+"\n")
+        save.write(bestParam+"\n")
+        save.write(bestResults+"\n")
+    else:
+        # CROSS VALIDATION SCORE
+        scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score),'Recall': make_scorer(recall_score),'f1': make_scorer(f1_score)}
+
+        scores2 = cross_validate(clf,X= featuresTest,y=np.array(y_true_merge),cv=5,scoring=scoring) # return_train_score=False,
+        print(scores2)
+
+        print("Cross validate in 5 k mean ")
+        print("mean fit time " + str( mean( scores2['fit_time']))   )
+        print("mean test accuracy  " + str( mean( scores2['test_Accuracy']))   )
+        print("mean test_Recall  " + str( mean( scores2['test_Recall']))   )
+        print("mean test_f1  " + str( mean( scores2['test_f1']))   )
+        print("mean test aur_roc  " + str( mean( scores2['test_AUC']))   )
+        # print(mean(prediction2))
 # print(results)
 # import matplotlib.pyplot as plt
 
@@ -437,7 +462,7 @@ if not CROSSVALIDATION:
 
     print(len(yTest))
 
-    clf.fit(featuresTest,y+y2 )
+    clf.fit(featuresTest,y_true_merge )
 
 
     prediction2 = clf.predict(features3)
@@ -445,6 +470,7 @@ if not CROSSVALIDATION:
     print("data test : " +str(len(dataBruteTest)))
 
     print(prediction2)
+    print("SCORE : " + str(clf.score(features3,yTest)))
 
     report = str(classification_report(yTest, prediction2,target_names= ["negative","positive"]))
     print(report) # support = nombre dans le Y test  mais pas la prediction
@@ -497,16 +523,7 @@ if not CROSSVALIDATION:
 
 # scores2 = cross_validate(clf,X= features3,y=np.array(yTest),cv=2,scoring=scoring ) # return_train_score=False,
 
-#CROSS VALIDATION SCORE
-# scores2 = cross_validate(clf,X= featuresTest,y=np.array(y+y2),cv=5,scoring=scoring) # return_train_score=False,
-# print(scores2)
-#
-# print("Cross validate in 5 k mean ")
-# print("mean fit time " + str( mean( scores2['fit_time']))   )
-# print("mean accuracy  " + str( mean( scores2['test_Accuracy']))   )
-# print("mean test_Recall  " + str( mean( scores2['test_Recall']))   )
-# print("mean test_f1  " + str( mean( scores2['test_f1']))   )
-# print(mean(prediction2))
+
 
 
 # pscore = metrics.accuracy_score(np.array(yTest), prediction)
