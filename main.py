@@ -152,9 +152,9 @@ def getFeatures(data,train=True):
         seqSize=len(seq)
         for residue in seq: #X for unknow amino acid residue and U for selenocysteine
             if(residue!=  'X' and residue!=  'U'):
-                chargeSequence += calculateChargeAminoAcid(7,residue)
+                # chargeSequence += calculateChargeAminoAcid(7,residue)
                 # hydropathySequence.append(hydropathy[residue])
-                # tensionSequence.append(tension[residue]/seqSize)
+                tensionSequence.append(tension[residue]/seqSize)
         dataCharge.append(chargeSequence)
         dataHydropathy.append(hydropathySequence)
         datatension.append(tensionSequence)
