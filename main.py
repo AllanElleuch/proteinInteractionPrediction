@@ -107,7 +107,7 @@ tfidf = []
 
 pip = Pipeline([
 # ('vect', HashingVectorizer(n_features=3000,ngram_range=(1,5))),
-('vect', HashingVectorizer(n_features=3000,ngram_range=(1,4))),
+('vect', HashingVectorizer(n_features=1500,ngram_range=(1,2))),
 # ('vect', CountVectorizer()),
 ('tfidf', TfidfTransformer( use_idf=True, smooth_idf=False, sublinear_tf=False)),
 # ('clf',TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=500))
