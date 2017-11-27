@@ -32,6 +32,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import classification_report
 from sklearn.metrics import f1_score
+from sklearn.model_selection import train_test_split
 import time
 import datetime
 startTime = time.time()
@@ -241,22 +242,19 @@ def read(file,number=-1):
 
     return data
 
-clf = RandomForestClassifier(max_depth=125, random_state=0,n_jobs=-1,n_estimators=400,bootstrap=False,max_features='auto',oob_score = False, verbose = 0)
+clf = RandomForestClassifier(max_depth=200, random_state=0,n_jobs=-1,n_estimators=400,bootstrap=False,max_features='auto',oob_score = False, verbose = 0)
 
-CROSSVALIDATION = True
-GRIDVALIDATION = True
+CROSSVALIDATION = False
+GRIDVALIDATION = False
+DATASET_E = True  ## DATASET E for testing or split dataset A and B for training and testing
 dataSetSize = -1
 # dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
-dataBrutePositive = read("Supp-A-prunned.txt",3000 ) # size 73260
-dataBruteNegative = read("Supp-B-prunned.txt",3000 ) # size 72960 #TOTAL 146 220
+dataBrutePositive = read("Supp-A-prunned.txt",25000 ) # size 73260
+dataBruteNegative = read("Supp-B-prunned.txt",25000 ) # size 72960 #TOTAL 146 220
 
 print("data dataBrutePositive : " +str(len(dataBrutePositive)))
 print("data dataBruteNegative : " +str(len(dataBruteNegative)))
-y=[1 for x in range(len(dataBrutePositive)//2)]
-y2=[0 for x in range(len(dataBruteNegative)//2)]
-print("y1 : " + str(len(y)))
-print("y2 : " + str(len(y2)))
 
 def mergeInterlacing(list1,list2, y1,y2):
     X = [None]*(len(list1)+len(list2))
@@ -266,17 +264,61 @@ def mergeInterlacing(list1,list2, y1,y2):
     Y[::2] = y1
     Y[1::2] = y2
     return X,Y
-dataMerge , y_true_merge = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
+dataMerge = None
+dataBruteTest= None
+y_true_merge = None
+yTest = None
+
+def split_list(a_list):
+    half = len(a_list)//2
+    return a_list[:half], a_list[half:]
+
+if CROSSVALIDATION: # merge positive and negative for cross validation
+    y=[1 for x in range(len(dataBrutePositive)//2)]
+    y2=[0 for x in range(len(dataBruteNegative)//2)]
+    dataMerge , y_true_merge = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
+else:
+    if(not DATASET_E): # Split positive and negative set in 2 for training and testing
+        y=[1 for x in range(len(dataBrutePositive)//2)]
+        y2=[0 for x in range(len(dataBruteNegative)//2)]
+        X , Y = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
+        X_train, y_train  = split_list(X)
+        X_test, y_test = split_list(Y)
+        dataMerge = X_train
+        dataBruteTest = y_train
+        y_true_merge = X_test
+        yTest =y_test
+        print("size dataset for training : " + str(len(X_test)) )
+        print("size dataset for testing : " + str(len(y_test)) )
+    else:
+        y=[1 for x in range(len(dataBrutePositive)//2)]
+        y2=[0 for x in range(len(dataBruteNegative)//2)]
+        dataMerge , y_true_merge = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
+
+        dataBruteTest = read("Supp-E-prunned.txt",-1 )
+        yTest=[1 for x in range(len(dataBruteTest)//4)]+[0 for x in range(len(dataBruteTest)//4)]
+        print("Size Test set " + str(len(yTest)))
+
+    # print(len(tab))
+    # print(tab[1])
+    # for item in tab:
+    #     print(tab)
+
+
 # dataMerge , y_true_merge =  dataBrutePositive + dataBruteNegative ,y +y2
-print("interlacing positive and negative set ")
-print("data merge : " +str(len(dataMerge)))
+# if dataSetSize==-1:
+#
+# else :
+#     yTest=[1 for x in range(nbFeatures)]
+
+# print("interlacing positive and negative set ")
+# print("data merge : " +str(len(dataMerge)))
 
 
 featuresTest = getFeatures(dataMerge)
 
 
 
-dataBruteTest = read("Supp-E-prunned.txt",-1 )
 features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
 
 
@@ -351,8 +393,7 @@ if CROSSVALIDATION:
             "min_samples_split" : [2,4], #def 2
             "bootstrap": [True, False], #true
               "min_samples_split": [2, 5,10], # 2
-              "min_samples_leaf": [2, 5,10], #2
-              "max_depth": [75, 125,None],
+               "max_depth": [75, 125,None],
             "max_features": ['auto', 'sqrt', 'log2']
         }
         scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score)}
@@ -455,10 +496,7 @@ if CROSSVALIDATION:
 if not CROSSVALIDATION:
 
     nbFeatures = features3.shape[0]
-    if dataSetSize==-1:
-        yTest=[1 for x in range(nbFeatures//2)]+[0 for x in range(nbFeatures//2)]
-    else :
-        yTest=[1 for x in range(nbFeatures)]
+
 
     print(len(yTest))
 
@@ -468,8 +506,8 @@ if not CROSSVALIDATION:
     prediction2 = clf.predict(features3)
 
     print("data test : " +str(len(dataBruteTest)))
-
-    print(prediction2)
+    #
+    # print(prediction2)
     print("SCORE : " + str(clf.score(features3,yTest)))
 
     report = str(classification_report(yTest, prediction2,target_names= ["negative","positive"]))
