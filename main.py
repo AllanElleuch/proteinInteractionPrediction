@@ -14,7 +14,7 @@ from scipy import sparse
 from proteinCharge import *
 from sklearn.feature_extraction.text import HashingVectorizer
 # from gensim import  models, similarities
-
+import os
 
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
@@ -257,6 +257,7 @@ def getFeatures(data,train=True):
 
 # generator = SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta")
 def read(file,number=-1):
+    file = os.path.join(os.path.dirname(__file__), file)
     generator = SeqIO.parse(file, "fasta")
     data = []
     if number == -1:
@@ -276,8 +277,8 @@ def read(file,number=-1):
 dataSetSize = 100
 dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
-dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",3000)
-dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",3000 )
+dataBrutePositive = read("Supp-A-prunned.txt",3000)
+dataBruteNegative = read("Supp-B-prunned.txt",3000 )
 # dataBrutePositive=dataBrutePositive[:len(dataBrutePositive)/2]
 # dataBruteNegative=dataBruteNegative[:len(dataBruteNegative)/2]
 from random import shuffle
@@ -350,7 +351,7 @@ clf.fit(featuresTest,y+y2 )
 # clf.fit(features2,y2 )
 # print(features2)
 
-dataBruteTest = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-E-prunned.txt",-1 )
+dataBruteTest = read("Supp-E-prunned.txt",-1 )
 features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
 
 
