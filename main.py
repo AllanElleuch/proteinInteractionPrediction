@@ -242,7 +242,8 @@ def read(file,number=-1):
 
     return data
 
-clf = RandomForestClassifier(max_depth=200, random_state=0,n_jobs=-1,n_estimators=400,bootstrap=False,max_features='auto',oob_score = False, verbose = 0)
+clf = RandomForestClassifier(max_depth=None, random_state=0,n_jobs=-1,n_estimators=300,bootstrap=False,max_features='sqrt',oob_score = False, verbose = 0, min_samples_leaf=2,min_samples_split=2)
+# clf = RandomForestClassifier(max_depth=200, random_state=0,n_jobs=-1,n_estimators=400,bootstrap=False,max_features='auto',oob_score = False, verbose = 0)
 
 CROSSVALIDATION = False
 GRIDVALIDATION = False
