@@ -405,7 +405,7 @@ print(classification_report(np.array(yTest), prediction2))
 print(scores2)
 
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 #résultat full data set  0.537194473964 de computation 320.96s] avec 2 features par prot => seq
 #0.529224229543 with just mean
 #0.515409139214 with max
