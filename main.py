@@ -167,8 +167,8 @@ def getFeatures(data,train=True):
     #     features.append(sum(seq)/len(seq))
     for tensionSeq,hydropathySeq,chargeSeq in zip(datatension,dataHydropathy,dataCharge): # liste avec valeur hydropathy => lissage des valeurs
         features=[]
-        features.append(sum(tensionSeq)) # 0.568for 500 pairs
-        # features.append(chargeSeq)  #0.596 for 1000 pairs
+        # features.append(sum(tensionSeq)) # 0.568for 500 pairs
+        features.append(chargeSeq)  #0.596 for 1000 pairs
         # features.append(max(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
         YList.append(features)
 
@@ -432,7 +432,7 @@ scoring = {'Accuracy': make_scorer(accuracy_score),'Recall': make_scorer(recall_
 # clf.fit(features2,y2 )
 # print(features2)
 
-dataBruteTest = read("Supp-E-prunned.txt",100 )
+dataBruteTest = read("Supp-E-prunned.txt",-1 )
 features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
 
 
@@ -451,10 +451,10 @@ else :
 print(len(yTest))
 from sklearn.model_selection import cross_val_score
 
-clf.fit(featuresTest,y+y2 )
-prediction2 = clf.predict(features3)
-print(prediction2)
-print(classification_report(yTest, prediction2))
+# clf.fit(featuresTest,y+y2 )
+# prediction2 = clf.predict(features3)
+# print(prediction2)
+# print(classification_report(yTest, prediction2))
 
 
 # prediction = clf.score(features3,yTest)
@@ -485,14 +485,14 @@ print(classification_report(yTest, prediction2))
 
 
 # scores2 = cross_validate(clf,X= features3,y=np.array(yTest),cv=2,scoring=scoring ) # return_train_score=False,
-# scores2 = cross_validate(clf,X= featuresTest,y=np.array(y+y2),cv=4,scoring=scoring) # return_train_score=False,
-# print(scores2)
+scores2 = cross_validate(clf,X= featuresTest,y=np.array(y+y2),cv=4,scoring=scoring) # return_train_score=False,
+print(scores2)
 
-# print("Cross validate in 5 k mean ")
-# print("mean fit time " + str( mean( scores2['fit_time']))   )
-# print("mean accuracy  " + str( mean( scores2['test_Accuracy']))   )
-# print("mean test_Recall  " + str( mean( scores2['test_Recall']))   )
-# print("mean test_f1  " + str( mean( scores2['test_f1']))   )
+print("Cross validate in 5 k mean ")
+print("mean fit time " + str( mean( scores2['fit_time']))   )
+print("mean accuracy  " + str( mean( scores2['test_Accuracy']))   )
+print("mean test_Recall  " + str( mean( scores2['test_Recall']))   )
+print("mean test_f1  " + str( mean( scores2['test_f1']))   )
 
 
 # pscore = metrics.accuracy_score(np.array(yTest), prediction)
