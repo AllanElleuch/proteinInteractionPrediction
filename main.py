@@ -107,7 +107,7 @@ tfidf = []
 
 pip = Pipeline([
 # ('vect', HashingVectorizer(n_features=3000,ngram_range=(1,5))),
-('vect', HashingVectorizer(n_features=1500,ngram_range=(1,2))),
+('vect', HashingVectorizer(n_features=750,ngram_range=(1,2))),
 # ('vect', CountVectorizer()),
 ('tfidf', TfidfTransformer( use_idf=True, smooth_idf=False, sublinear_tf=False)),
 # ('clf',TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=500))
@@ -116,7 +116,7 @@ pip = Pipeline([
 parameters = {
 }
 vectorizer=pip
-# vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=500) # 964 pour 50 |958  pour 100
+# vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=150) # 964 pour 50 |958  pour 100
 # 0.783209351753 avec TfidfVectorizer 0.783209351753% accuracy with 40 000 training sequences and 1800 test sequences
 #0.835812964931 avec hashing vectorizer mais prend 2048.301s n_features=3000,ngram_range=(1,5)
 #0.768331562168 hashing 524.963s] n_features=500,ngram_range=(1,2)
@@ -125,7 +125,7 @@ vectorizer=pip
 
 def splitString(x,i):
     res=""
-    k=12
+    k=7
     for i in range(0,len(x),k):
         res=res+x[i:i+k]+" "
     return res
@@ -167,8 +167,8 @@ def getFeatures(data,train=True):
     #     features.append(sum(seq)/len(seq))
     for tensionSeq,hydropathySeq,chargeSeq in zip(datatension,dataHydropathy,dataCharge): # liste avec valeur hydropathy => lissage des valeurs
         features=[]
-        # features.append(sum(tensionSeq)) # 0.568for 500 pairs
-        # features.append(chargeSeq)  #0.596 for 1000 pairs
+        features.append(sum(tensionSeq)) # 0.568for 500 pairs
+        features.append(chargeSeq)  #0.596 for 1000 pairs
         features.append(max(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
         YList.append(features)
 
@@ -321,7 +321,7 @@ print("y2 : " + str(len(y2)))
 
 
 # print(len(y2))
-clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=50,max_features=None,oob_score = False)
+clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=50,max_features=None,oob_score = False, verbose = 1)
 # param_grid = {
 #     # 'n_estimators': [200, 700],
 #     # 'max_features': ['auto', 'sqrt', 'log2']
@@ -485,7 +485,7 @@ from sklearn.model_selection import cross_val_score
 
 
 # scores2 = cross_validate(clf,X= features3,y=np.array(yTest),cv=2,scoring=scoring ) # return_train_score=False,
-scores2 = cross_validate(clf,X= featuresTest,y=np.array(y+y2),cv=4,scoring=scoring) # return_train_score=False,
+scores2 = cross_validate(clf,X= featuresTest,y=np.array(y+y2),cv=5,scoring=scoring) # return_train_score=False,
 print(scores2)
 
 print("Cross validate in 5 k mean ")
