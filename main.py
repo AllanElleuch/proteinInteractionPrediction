@@ -107,7 +107,7 @@ tfidf = []
 
 pip = Pipeline([
 # ('vect', HashingVectorizer(n_features=3000,ngram_range=(1,5))),
-('vect', HashingVectorizer(n_features=1500,ngram_range=(1,2))),
+('vect', HashingVectorizer(n_features=3000,ngram_range=(1,4))),
 # ('vect', CountVectorizer()),
 ('tfidf', TfidfTransformer( use_idf=True, smooth_idf=False, sublinear_tf=False)),
 # ('clf',TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=500))
@@ -115,8 +115,8 @@ pip = Pipeline([
 ])
 parameters = {
 }
-# vectorizer=pip
-vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=75) # 964 pour 50 |958  pour 100
+vectorizer=pip
+# vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=500) # 964 pour 50 |958  pour 100
 # 0.783209351753 avec TfidfVectorizer 0.783209351753% accuracy with 40 000 training sequences and 1800 test sequences
 #0.835812964931 avec hashing vectorizer mais prend 2048.301s n_features=3000,ngram_range=(1,5)
 #0.768331562168 hashing 524.963s] n_features=500,ngram_range=(1,2)
