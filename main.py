@@ -15,14 +15,16 @@ from proteinCharge import *
 from sklearn.feature_extraction.text import HashingVectorizer
 # from gensim import  models, similarities
 import os
+from sklearn.model_selection import cross_val_score
 
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
+from scipy import *
 
-
+from sklearn.metrics import roc_auc_score
 from sklearn import metrics
 from sklearn.model_selection import cross_validate
 from sklearn.metrics import make_scorer
@@ -108,7 +110,7 @@ tfidf = []
 
 pip = Pipeline([
 # ('vect', HashingVectorizer(n_features=3000,ngram_range=(1,5))),
-('vect', HashingVectorizer(n_features=1000,ngram_range=(1,2))),
+('vect', HashingVectorizer(n_features=500,ngram_range=(1,2))),
 # ('vect', CountVectorizer()),
 ('tfidf', TfidfTransformer( use_idf=True, smooth_idf=False, sublinear_tf=False)),
 # ('clf',TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=500))
@@ -176,42 +178,7 @@ def getFeatures(data,train=True):
     pairsSeq = []
     for i in range(0,len(listSeq),2):
         pairsSeq.append(listSeq[i]+listSeq[i+1])
-
-    # if train:
-    #
-    #     #
-    #
     pairs = pairSeq(listSeq)
-    # dataMatrix=preVectorizer.transform(pairs)
-    #     print(dataMatrix.shape)
-        # tfidf_matrix = vectorizer.fit_transform(dataMatrix)
-        # tfidf_matrix = vectorizer.fit(listSeq)
-
-
-
-
-    # dataMatrix=preVectorizer.transform(listSeq)
-    # data = pairSeq(pairsSeq)
-    # print("Hashing vectorizer")
-    # print(len(data))
-    # print(dataMatrix.shape)
-    # print(dataMatrix[0].shape)
-    # print(dataMatrix)
-
-
-    if train:
-
-        # tfidf = models.TfidfModel(listSeq)
-        # matrix = similarities.SparseMatrixSimilarity(tfidf[corpus], num_features=100)
-        # tfidf_matrix = vectorizer.fit_transform(dataMatrix)
-        # pip.fit_transform(listSeq)
-        tfidf_matrix = vectorizer.fit_transform(pairsSeq)
-
-    else :
-        # dataMatrix=preVectorizer.transform(pairsSeq)
-        # tfidf_matrix = vectorizer.transform(dataMatrix)
-        tfidf_matrix = vectorizer.transform(pairsSeq)
-
 
     # for seq in dataHydropathy: # liste avec valeur hydropathy => lissage des valeurs
     #     features.append(sum(seq)/len(seq))
@@ -241,30 +208,19 @@ def getFeatures(data,train=True):
 
     pairs = []
     for i in range(0,len(YList),2):
-
         pairs.append(YList[i]+YList[i+1])
-        # pairs.append(YList[i])
-        # pairs.append(YList[i+1])
-    # print(pairs)
-    # print(pairs)
     X = np.array(pairs).reshape(-1,len(pairs[0])) # formation en pairs .reshape(-1, 1)
-    # print(X.shape)
-    # print(tfidf_matrix.shape)
 
-    final = sparse.hstack((tfidf_matrix, X))
-    # print(final.shape)
+    # if train:
+    #     tfidf_matrix = vectorizer.fit_transform(pairsSeq)
+    #
+    # else :
+    #     tfidf_matrix = vectorizer.transform(pairsSeq)
 
-    # tfidf_matrix
-    # scaler = MinMaxScaler(feature_range=(0, 1)) # Réduction
-    # rescaledX = scaler.fit_transform(X)
-    # print(X.shape)
-    # print(X[0])
 
-    # print(rescaledX)
-    # print(tfidf_matrix)
-    # print(vectorizer.get_feature_names())
-    # print(X)
-    return final
+    # final = sparse.hstack((tfidf_matrix, X))
+
+    return X
 
 
 # generator = SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta")
@@ -285,20 +241,37 @@ def read(file,number=-1):
 
     return data
 
+clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=200,max_features='auto',oob_score = False, verbose = 0)
 
-dataSetSize = 100
+CROSSVALIDATION = True
+dataSetSize = -1
 dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
-dataBrutePositive = read("Supp-A-prunned.txt",20000 ) # size 73260
-dataBruteNegative = read("Supp-B-prunned.txt",20000 ) # size 72960 #TOTAL 146 220
-# dataBrutePositive=dataBrutePositive[:len(dataBrutePositive)/2]
-# dataBruteNegative=dataBruteNegative[:len(dataBruteNegative)/2]
-from random import shuffle
-
-dataMerge = dataBrutePositive + dataBruteNegative
+dataBrutePositive = read("Supp-A-prunned.txt",3000 ) # size 73260
+dataBruteNegative = read("Supp-B-prunned.txt",3000 ) # size 72960 #TOTAL 146 220
 
 print("data dataBrutePositive : " +str(len(dataBrutePositive)))
 print("data dataBruteNegative : " +str(len(dataBruteNegative)))
+y=[1 for x in range(len(dataBrutePositive)//2)]
+y2=[0 for x in range(len(dataBruteNegative)//2)]
+print("y1 : " + str(len(y)))
+print("y2 : " + str(len(y2)))
+
+dataMerge = dataBrutePositive + dataBruteNegative
+
+print("data merge : " +str(len(dataMerge)))
+
+
+featuresTest = getFeatures(dataMerge)
+
+
+
+dataBruteTest = read("Supp-E-prunned.txt",-1 )
+features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
+
+
+
+
 
 # else
 #     dataMerge=dataMerge[:len(dataMerge)/2]
@@ -306,23 +279,17 @@ print("data dataBruteNegative : " +str(len(dataBruteNegative)))
 # if(len(dataMerge)%2==0):
     # print("slice : " + str(len(dataMerge)//2))
     # dataMerge=dataMerge[:36480]
-print("data merge : " +str(len(dataMerge)))
 
 # y=[1 for x in range(36480//4)]
 # y2=[0 for x in range(36480//4)]
 
 
-y=[1 for x in range(len(dataBrutePositive)//2)]
 
-y2=[0 for x in range(len(dataBruteNegative)//2)]
-print("y1 : " + str(len(y)))
-print("y2 : " + str(len(y2)))
 # features = getFeatures(dataBrutePositive)# SUppose que données sont des pairs bout à bout
 # features2 = getFeatures(dataBruteNegative) # SUppose que données sont des pairs bout à bout
 
 
 # print(len(y2))
-clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=50,max_features=None,oob_score = False, verbose = 1)
 # param_grid = {
 #     # 'n_estimators': [200, 700],
 #     # 'max_features': ['auto', 'sqrt', 'log2']
@@ -330,8 +297,7 @@ clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimator
 # clf = GridSearchCV(estimator=clf2, param_grid=param_grid, cv= 5)
 
 # clf = svm.SVC()
-featuresTest = getFeatures(dataMerge)
-from scipy import *
+
 print("info1")
 print("features shapes :" + str(featuresTest.shape))
 
@@ -361,28 +327,45 @@ print("features shapes :" + str(featuresTest.shape))
 # print(merge)
 
 
-# ENTRAINEMENT:  + VISUALISATION SI POSSIBLE
-# param_grid = {
-#     'n_estimators': [50,200, 700],
-#     'max_features': ['auto', 'sqrt', 'log2']
-# }
+# CROSS VALIDATION TRAINING
 
-param_grid = {
-    'n_estimators': [50]
-}
-# scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score)}
+# scoring = {'Accuracy': make_scorer(accuracy_score),'Recall': make_scorer(recall_score),'f1':make_scorer(f1_score)}
+if CROSSVALIDATION:
+    # param_grid = {
+    #     'n_estimators': [50,200, 700],
+    #     'max_features': ['auto', 'sqrt', 'log2']
+    # }
+    param_grid = {
+        'n_estimators': [200,700, 1300],
+        "min_samples_split" : [2,4], #def 2
+        "bootstrap": [True, False], #true
+          "min_samples_split": [2, 5], # 2
+          "min_samples_leaf": [2, 5], #2
+          "max_depth": 75, 125],
+        "max_features": ['auto', 'sqrt', 'log2']
+    }
+    scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score)}
 
-scoring = {'Accuracy': make_scorer(accuracy_score),'Recall': make_scorer(recall_score),'f1':make_scorer(f1_score)}
 
-# CV_rfc = GridSearchCV(estimator=clf,
-#                   param_grid=param_grid,
-#                   scoring=scoring, cv=5, refit='AUC') #, refit='AUC'
-# CV_rfc = GridSearchCV(estimator=clf,
-#                   param_grid=param_grid,
-#                   scoring=scoring, cv=5, refit='f1')
-# CV_rfc.fit(featuresTest, y+y2)
-# print(CV_rfc.best_params_)
-# results = CV_rfc.cv_results_
+    CV_rfc = GridSearchCV(estimator=clf,
+                      param_grid=param_grid,
+                      scoring=scoring, cv=5, refit='AUC') #, refit='AUC'
+    CV_rfc.fit(featuresTest, y+y2)
+    results = str(CV_rfc.cv_results_)
+    results = "cv_results_ : " + results +"\n"
+    bestResults = str(CV_rfc.best_score_ )
+    bestResults = "best_score_ : " + bestResults
+    bestParam = str(CV_rfc.best_params_)+"\n"
+    bestParam = "best_params_ : " + bestParam +"\n"
+    print(bestResults)
+    print("Best parameters : ")
+    print(bestParam)
+
+
+    save =   open(os.path.join(os.path.dirname(__file__), "crossValidation.txt"), 'w')
+    # save.write(results+"\n")
+    save.write(bestParam+"\n")
+    save.write(bestResults+"\n")
 # print(results)
 # import matplotlib.pyplot as plt
 
@@ -433,36 +416,63 @@ scoring = {'Accuracy': make_scorer(accuracy_score),'Recall': make_scorer(recall_
 # clf.fit(features2,y2 )
 # print(features2)
 
-dataBruteTest = read("Supp-E-prunned.txt",-1 )
-features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
 
 
 
 # print("data brute test" + str(len(features3)))
 
 
-nbFeatures = features3.shape[0]
-# yTest=[1 for x in range(nbFeatures)]
-# print(len([1 for x in range(nbFeatures)]))
-if dataSetSize==-1:
-    yTest=[1 for x in range(nbFeatures//2)]+[0 for x in range(nbFeatures//2)]
-else :
-    yTest=[1 for x in range(nbFeatures)]
-
-print(len(yTest))
-from sklearn.model_selection import cross_val_score
-
-clf.fit(featuresTest,y+y2 )
-prediction2 = clf.score(features3,yTest)
-# print(prediction2)
-# print(classification_report(yTest, prediction2))
 
 
-# prediction = clf.score(features3,yTest)
-# print("prediction" + str(prediction))
+############## DO PREDICTION FOR  TEST SET  + Export results
+
+
+if not CROSSVALIDATION:
+
+    nbFeatures = features3.shape[0]
+    if dataSetSize==-1:
+        yTest=[1 for x in range(nbFeatures//2)]+[0 for x in range(nbFeatures//2)]
+    else :
+        yTest=[1 for x in range(nbFeatures)]
+
+    print(len(yTest))
+
+    clf.fit(featuresTest,y+y2 )
+
+
+    prediction2 = clf.predict(features3)
+
+    print("data test : " +str(len(dataBruteTest)))
+
+    print(prediction2)
+
+    report = str(classification_report(yTest, prediction2,target_names= ["negative","positive"]))
+    print(report) # support = nombre dans le Y test  mais pas la prediction
+
+    aur = str(roc_auc_score(yTest, prediction2))
+    aur = "aur score " + aur + "\n"
+    print(aur)
 
 
 
+
+    ## EXPORT results
+    print( '%s function took %0.3f ms' % ("machine learning",  (time.time() - startTime) ))
+    computeTime='%s function took %0.3f ms' % ("machine learning", (time.time() - startTime))
+    save =   open(os.path.join(os.path.dirname(__file__), "scorePrediction.txt"), 'w')
+    save.write(computeTime)
+    save.write(report)
+    save.write(aur)
+
+
+
+
+
+
+
+
+
+##########################################
 
 # print(np.array(yTest))
 # print(prediction2)
@@ -496,12 +506,8 @@ prediction2 = clf.score(features3,yTest)
 # print("mean accuracy  " + str( mean( scores2['test_Accuracy']))   )
 # print("mean test_Recall  " + str( mean( scores2['test_Recall']))   )
 # print("mean test_f1  " + str( mean( scores2['test_f1']))   )
-print(prediction2)
-print( '%s function took %0.3f ms' % ("machine learning",  (time.time() - startTime) ))
-computeTime='%s function took %0.3f ms' % ("machine learning", (time.time() - startTime))
-save =   open(os.path.join(os.path.dirname(__file__), "scorePrediction.txt"), 'w')
-save.write("prediction score : " +str(prediction2)+"\n")
-save.write(computeTime)
+# print(mean(prediction2))
+
 
 # pscore = metrics.accuracy_score(np.array(yTest), prediction)
 # score = metrics.f1_score(yTest, prediction)
