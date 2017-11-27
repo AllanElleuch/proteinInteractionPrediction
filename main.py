@@ -152,9 +152,9 @@ def getFeatures(data,train=True):
         seqSize=len(seq)
         for residue in seq: #X for unknow amino acid residue and U for selenocysteine
             if(residue!=  'X' and residue!=  'U'):
-                # chargeSequence += calculateChargeAminoAcid(7,residue)
+                chargeSequence += calculateChargeAminoAcid(7,residue)
                 # hydropathySequence.append(hydropathy[residue])
-                tensionSequence.append(tension[residue]/seqSize)
+                # tensionSequence.append(tension[residue]/seqSize)
         dataCharge.append(chargeSequence)
         dataHydropathy.append(hydropathySequence)
         datatension.append(tensionSequence)
@@ -288,8 +288,8 @@ def read(file,number=-1):
 dataSetSize = 100
 dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
-dataBrutePositive = read("Supp-A-prunned.txt",10000 ) # size 73260
-dataBruteNegative = read("Supp-B-prunned.txt",10000 ) # size 72960 #TOTAL 146 220
+dataBrutePositive = read("Supp-A-prunned.txt",20000 ) # size 73260
+dataBruteNegative = read("Supp-B-prunned.txt",20000 ) # size 72960 #TOTAL 146 220
 # dataBrutePositive=dataBrutePositive[:len(dataBrutePositive)/2]
 # dataBruteNegative=dataBruteNegative[:len(dataBruteNegative)/2]
 from random import shuffle
