@@ -336,12 +336,12 @@ if CROSSVALIDATION:
     #     'max_features': ['auto', 'sqrt', 'log2']
     # }
     param_grid = {
-        'n_estimators': [200,700, 1300],
+        'n_estimators': [200,400],
         "min_samples_split" : [2,4], #def 2
         "bootstrap": [True, False], #true
           "min_samples_split": [2, 5], # 2
           "min_samples_leaf": [2, 5], #2
-          "max_depth": 75, 125],
+          "max_depth": [75, 125],
         "max_features": ['auto', 'sqrt', 'log2']
     }
     scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score)}
