@@ -288,8 +288,8 @@ def read(file,number=-1):
 dataSetSize = 100
 dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
-dataBrutePositive = read("Supp-A-prunned.txt",-1 ) # size 73260
-dataBruteNegative = read("Supp-B-prunned.txt",-1 ) # size 72960 #TOTAL 146 220
+dataBrutePositive = read("Supp-A-prunned.txt",20000 ) # size 73260
+dataBruteNegative = read("Supp-B-prunned.txt",20000 ) # size 72960 #TOTAL 146 220
 # dataBrutePositive=dataBrutePositive[:len(dataBrutePositive)/2]
 # dataBruteNegative=dataBruteNegative[:len(dataBruteNegative)/2]
 from random import shuffle
@@ -321,7 +321,7 @@ print("y2 : " + str(len(y2)))
 
 
 # print(len(y2))
-clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=50,max_features=None,oob_score = True)
+clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=50,max_features=None,oob_score = False)
 # param_grid = {
 #     # 'n_estimators': [200, 700],
 #     # 'max_features': ['auto', 'sqrt', 'log2']
