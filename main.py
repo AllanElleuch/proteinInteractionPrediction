@@ -30,8 +30,9 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import classification_report
 from sklearn.metrics import f1_score
-
-
+import time
+import datetime
+startTime = time.time()
 hydropathy = { 'A': 1.8,'R':-4.5,'N':-3.5,'D':-3.5,'C': 2.5,
         'Q':-3.5,'E':-3.5,'G':-0.4,'H':-3.2,'I': 4.5,
         'L': 3.8,'K':-3.9,'M': 1.9,'F': 2.8,'P':-1.6,
@@ -107,7 +108,7 @@ tfidf = []
 
 pip = Pipeline([
 # ('vect', HashingVectorizer(n_features=3000,ngram_range=(1,5))),
-('vect', HashingVectorizer(n_features=750,ngram_range=(1,2))),
+('vect', HashingVectorizer(n_features=1000,ngram_range=(1,2))),
 # ('vect', CountVectorizer()),
 ('tfidf', TfidfTransformer( use_idf=True, smooth_idf=False, sublinear_tf=False)),
 # ('clf',TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=500))
@@ -263,7 +264,7 @@ def getFeatures(data,train=True):
     # print(tfidf_matrix)
     # print(vectorizer.get_feature_names())
     # print(X)
-    return tfidf_matrix
+    return final
 
 
 # generator = SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta")
@@ -451,8 +452,8 @@ else :
 print(len(yTest))
 from sklearn.model_selection import cross_val_score
 
-# clf.fit(featuresTest,y+y2 )
-# prediction2 = clf.predict(features3)
+clf.fit(featuresTest,y+y2 )
+prediction2 = clf.score(features3,yTest)
 # print(prediction2)
 # print(classification_report(yTest, prediction2))
 
@@ -485,15 +486,22 @@ from sklearn.model_selection import cross_val_score
 
 
 # scores2 = cross_validate(clf,X= features3,y=np.array(yTest),cv=2,scoring=scoring ) # return_train_score=False,
-scores2 = cross_validate(clf,X= featuresTest,y=np.array(y+y2),cv=5,scoring=scoring) # return_train_score=False,
-print(scores2)
 
-print("Cross validate in 5 k mean ")
-print("mean fit time " + str( mean( scores2['fit_time']))   )
-print("mean accuracy  " + str( mean( scores2['test_Accuracy']))   )
-print("mean test_Recall  " + str( mean( scores2['test_Recall']))   )
-print("mean test_f1  " + str( mean( scores2['test_f1']))   )
-
+#CROSS VALIDATION SCORE
+# scores2 = cross_validate(clf,X= featuresTest,y=np.array(y+y2),cv=5,scoring=scoring) # return_train_score=False,
+# print(scores2)
+#
+# print("Cross validate in 5 k mean ")
+# print("mean fit time " + str( mean( scores2['fit_time']))   )
+# print("mean accuracy  " + str( mean( scores2['test_Accuracy']))   )
+# print("mean test_Recall  " + str( mean( scores2['test_Recall']))   )
+# print("mean test_f1  " + str( mean( scores2['test_f1']))   )
+print(prediction2)
+print( '%s function took %0.3f ms' % ("machine learning",  (time.time() - startTime) ))
+computeTime='%s function took %0.3f ms' % ("machine learning", (time.time() - startTime))
+save =   open(os.path.join(os.path.dirname(__file__), "scorePrediction.txt"), 'w')
+save.write("prediction score : " +str(prediction2)+"\n")
+save.write(computeTime)
 
 # pscore = metrics.accuracy_score(np.array(yTest), prediction)
 # score = metrics.f1_score(yTest, prediction)
