@@ -13,7 +13,7 @@ import pandas
 from scipy import sparse
 from proteinCharge import *
 from sklearn.feature_extraction.text import HashingVectorizer
-from gensim import  models, similarities
+# from gensim import  models, similarities
 
 
 from sklearn.feature_extraction.text import CountVectorizer
@@ -95,7 +95,8 @@ tension = {
 tfidf = []
 
 pip = Pipeline([
-('vect', HashingVectorizer(n_features=3000,ngram_range=(1,5))),
+# ('vect', HashingVectorizer(n_features=3000,ngram_range=(1,5))),
+('vect', HashingVectorizer(n_features=1500,ngram_range=(1,2))),
 # ('vect', CountVectorizer()),
 ('tfidf', TfidfTransformer( use_idf=True, smooth_idf=False, sublinear_tf=False)),
 # ('clf',TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=500))
@@ -103,10 +104,14 @@ pip = Pipeline([
 ])
 parameters = {
 }
-vectorizer=pip
-# vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=75) # 964 pour 50 |958  pour 100
+# vectorizer=pip
+vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.8,min_df=1,stop_words='english',max_features=75) # 964 pour 50 |958  pour 100
 # 0.783209351753 avec TfidfVectorizer 0.783209351753% accuracy with 40 000 training sequences and 1800 test sequences
-#0.835812964931 avec hashing vectorizer mais prend 2048.301s
+#0.835812964931 avec hashing vectorizer mais prend 2048.301s n_features=3000,ngram_range=(1,5)
+#0.768331562168 hashing 524.963s] n_features=500,ngram_range=(1,2)
+# 0.774707757705 hashing  749.803s n_features=750,ngram_range=(1,3))
+#0.817747077577 hashing 764.563s n_features=1500,ngram_range=(1,2))
+
 def splitString(x,i):
     res=""
     k=12
@@ -271,8 +276,8 @@ def read(file,number=-1):
 dataSetSize = 100
 dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
-dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",20000)
-dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",20000 )
+dataBrutePositive = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-A-prunned.txt",3000)
+dataBruteNegative = read("C:/Users/escroc/Documents/projectBioInformatique/Supp-B-prunned.txt",3000 )
 # dataBrutePositive=dataBrutePositive[:len(dataBrutePositive)/2]
 # dataBruteNegative=dataBruteNegative[:len(dataBruteNegative)/2]
 from random import shuffle
@@ -304,7 +309,13 @@ print("y2 : " + str(len(y2)))
 
 
 print(len(y2))
-clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=50,max_features=None)
+clf = RandomForestClassifier(max_depth=100, random_state=0,n_jobs=-1,n_estimators=50,max_features=None,oob_score = True)
+# param_grid = {
+#     # 'n_estimators': [200, 700],
+#     # 'max_features': ['auto', 'sqrt', 'log2']
+# }
+# clf = GridSearchCV(estimator=clf2, param_grid=param_grid, cv= 5)
+
 # clf = svm.SVC()
 featuresTest = getFeatures(dataMerge)
 from scipy import *
@@ -357,8 +368,41 @@ else :
 
 print(len(yTest))
 # prediction=-1
+from sklearn.model_selection import cross_val_score
+
+prediction2 = clf.predict(features3)
 prediction = clf.score(features3,yTest)
-print(prediction)
+print("prediction " + str(prediction))
+# print(mean(prediction))
+from sklearn import metrics
+from sklearn.model_selection import cross_validate
+print(np.array(yTest))
+# print(prediction)
+# print(metrics.matthews_corrcoef(np.array(yTest), prediction2))
+# scores2 = cross_val_score(clf, features3, np.array(yTest))
+# means = clf.cv_results_['mean_test_score']
+# stds = clf.cv_results_['std_test_score']
+# print(means)
+# print(stds)
+# for mean, std, params in zip(means, stds, clf.cv_results_['params']):
+#     print("%0.3f (+/-%0.03f) for %r"
+#           % (mean, std * 2, params))
+scores2 = cross_validate(clf,X= features3,y= np.array(yTest), return_train_score=False,cv=5,scoring='precision_macro' )
+
+from sklearn.metrics import classification_report
+print("prediction" + str(prediction))
+print(classification_report(np.array(yTest), prediction2))
+# pscore = metrics.accuracy_score(np.array(yTest), prediction)
+# score = metrics.f1_score(yTest, prediction)
+# print(score)
+# print(pscore)
+# print(score)
+# print( np.mean(scores2))
+# print(yTest)
+# print("Accuracy: %0.2f (+/- %0.2f)" % (scores2.mean(), scores2.std() * 2))
+# print(len(scores2))
+print(scores2)
+
 
 import matplotlib.pyplot as plt
 #résultat full data set  0.537194473964 de computation 320.96s] avec 2 features par prot => seq
