@@ -152,8 +152,8 @@ def getFeatures(data,train=True):
         seqSize=len(seq)
         for residue in seq: #X for unknow amino acid residue and U for selenocysteine
             if(residue!=  'X' and residue!=  'U'):
-                chargeSequence += calculateChargeAminoAcid(7,residue)
-                hydropathySequence.append(hydropathy[residue])
+                # chargeSequence += calculateChargeAminoAcid(7,residue)
+                # hydropathySequence.append(hydropathy[residue])
                 tensionSequence.append(tension[residue]/seqSize)
         dataCharge.append(chargeSequence)
         dataHydropathy.append(hydropathySequence)
@@ -168,8 +168,8 @@ def getFeatures(data,train=True):
     for tensionSeq,hydropathySeq,chargeSeq in zip(datatension,dataHydropathy,dataCharge): # liste avec valeur hydropathy => lissage des valeurs
         features=[]
         features.append(sum(tensionSeq)) # 0.568for 500 pairs
-        features.append(chargeSeq)  #0.596 for 1000 pairs
-        features.append(max(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
+        # features.append(chargeSeq)  #0.596 for 1000 pairs
+        # features.append(max(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
         YList.append(features)
 
     pairsSeq = []
@@ -263,7 +263,7 @@ def getFeatures(data,train=True):
     # print(tfidf_matrix)
     # print(vectorizer.get_feature_names())
     # print(X)
-    return tfidf_matrix
+    return X
 
 
 # generator = SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta")
