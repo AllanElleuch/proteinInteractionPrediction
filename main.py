@@ -156,12 +156,17 @@ def getFeatures(data,train=True):
         seqSize=len(seq)
         for residue in seq: #X for unknow amino acid residue and U for selenocysteine
             if(residue!=  'X' and residue!=  'U'):
-                chargeSequence += calculateChargeAminoAcid(7,residue)
+                # chargeSequence += calculateChargeAminoAcid(7,residue)
                 hydropathySequence.append(hydropathy[residue])
                 tensionSequence.append(tension[residue]/seqSize)
-        dataCharge.append(chargeSequence)
+        # np.append(dataCharge,chargeSequence)
+        # np.append(dataHydropathy,hydropathySequence)
+        # np.append(datatension,tensionSequence)
+        # print(datatension)
+        dataCharge.append(calculateCharge(7.35,seq))
         dataHydropathy.append(hydropathySequence)
         datatension.append(tensionSequence)
+
 
     # print("min : " + str(len(min(listSeq))))
 
@@ -171,9 +176,9 @@ def getFeatures(data,train=True):
     #     features.append(sum(seq)/len(seq))
     for tensionSeq,hydropathySeq,chargeSeq in zip(datatension,dataHydropathy,dataCharge): # liste avec valeur hydropathy => lissage des valeurs
         features=[]
-        features.append(sum(tensionSeq)) # 0.568for 500 pairs
+        features.append(sum(tensionSeq)/len(tensionSeq)) # 0.568for 500 pairs
         features.append(chargeSeq)  #0.596 for 1000 pairs
-        features.append(max(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
+        features.append(sum(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
         YList.append(features)
 
     pairsSeq = []
@@ -210,18 +215,30 @@ def getFeatures(data,train=True):
     pairs = []
     for i in range(0,len(YList),2):
         pairs.append(YList[i]+YList[i+1])
+    print(YList)
     X = np.array(pairs).reshape(-1,len(pairs[0])) # formation en pairs .reshape(-1, 1)
 
-    # if train:
-    #     tfidf_matrix = vectorizer.fit_transform(pairsSeq)
-    #
-    # else :
-    #     tfidf_matrix = vectorizer.transform(pairsSeq)
-    #
-    #
-    # final = sparse.hstack((tfidf_matrix, X))
 
-    return X
+    if ( TFIDF) :
+        if train:
+            tfidf_matrix = vectorizer.fit_transform(pairsSeq)
+
+        else :
+            tfidf_matrix = vectorizer.transform(pairsSeq)
+
+
+        final = sparse.hstack((X, tfidf_matrix))
+        column = ['tension_A', 'charge_A', 'hydropathy_A','tension_B', 'charge_B', 'hydropathy_B','TFIDF' ]
+        # X = pandas.DataFrame(final.toarray()) #,  columns=column
+        # X = pandas.SparseDataFrame(final.toarray()) #,  columns=column
+        # print(type(final))
+        # print(final)
+        return final
+    else:
+        column = ['tension_A', 'charge_A', 'hydropathy_A','tension_B', 'charge_B', 'hydropathy_B', ]
+        if(PLOTDATA):
+            X = pandas.DataFrame(X,  columns=column)
+        return X
 
 
 # generator = SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta")
@@ -247,12 +264,14 @@ clf = RandomForestClassifier(max_depth=None, random_state=0,n_jobs=-1,n_estimato
 
 CROSSVALIDATION = False
 GRIDVALIDATION = False
-DATASET_E = True  ## DATASET E for testing or split dataset A and B for training and testing
+DATASET_E = False  ## DATASET E for testing or split dataset A and B for training and testing
 dataSetSize = -1
+TFIDF=False
+PLOTDATA = True
 # dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
-dataBrutePositive = read("Supp-A-prunned.txt",25000 ) # size 73260
-dataBruteNegative = read("Supp-B-prunned.txt",25000 ) # size 72960 #TOTAL 146 220
+dataBrutePositive = read("Supp-A-prunned.txt",3000 ) # size 73260
+dataBruteNegative = read("Supp-B-prunned.txt",3000 ) # size 72960 #TOTAL 146 220
 
 print("data dataBrutePositive : " +str(len(dataBrutePositive)))
 print("data dataBruteNegative : " +str(len(dataBruteNegative)))
@@ -317,10 +336,8 @@ else:
 
 
 featuresTest = getFeatures(dataMerge)
-
-
-
-features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
+if(dataBruteTest):
+    features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
 
 
 
@@ -434,9 +451,65 @@ if CROSSVALIDATION:
         print("mean test aur_roc  " + str( mean( scores2['test_AUC']))   )
         # print(mean(prediction2))
 # print(results)
-# import matplotlib.pyplot as plt
 
-#
+def label_charge(row):
+    if row['charge_A'] >=20 and row['charge_B'] < 20 :
+        return 1
+    elif  row['charge_A'] <=20 and row['charge_B'] > 20 :
+        return 1
+    else:
+        return 0
+
+
+if (PLOTDATA):
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    X_train = featuresTest
+    Y_train = y_true_merge
+    X_train['positive_or_negative'] = pandas.Series(Y_train)
+    d=X_train
+    # pandas.DataFrame.plot.scatter
+    d["chargeRatio"]=(d.charge_A/d.charge_B)
+    categorieCharge = d.apply (lambda row: label_charge(row),axis=1)
+
+    d['charge_cat'] = categorieCharge
+    print(X_train)
+    print(categorieCharge)
+    # sns.distplot(x='charge_cat',hue='positive_or_negative', data = d);
+    # sns.distplot(x='charge_cat', data = d);
+    # plt.hist([d["chargeRatio"], d["positive_or_negative"]], color=['r','b'], alpha=0.5)
+
+
+    # d.groupby('positive_or_negative').charge_A.hist(stacked=True)
+    # pandas.DataFrame({'Positive': d.groupby('positive_or_negative').get_group(1).chargeRatio,
+    #           'Negative':   d.groupby('positive_or_negative').get_group(0).chargeRatio}).plot.hist(stacked=True)
+
+
+    # sns.distplot(x);
+
+    # sns.swarmplot(x="charge_A", y="tension_B", hue="positive_or_negative", data=X_train);
+    # sns.countplot(x="charge_A", data=X_train, palette="Greens_d");
+    # sns.regplot(x="chargeRatio", y="positive_or_negative", data=X_train);
+    sns.lmplot(x="charge_A", y="charge_B", hue="positive_or_negative",  data=d);
+    # sns.lmplot(x="tension_A", y="tension_B", hue="positive_or_negative",  data=d);
+    # sns.lmplot(x="charge_A",y="charge_B" ,hue="positive_or_negative",  data=d);
+    # sns.regplot(x="charge_A", y="charge_B",data=d, lowess=True)
+    # sns.lmplot(x="charge_A", y="charge_B", hue='positive_or_negative', data=d);
+    # sns.lmplot(x="tension_A", y="tension_A", hue='positive_or_negative', data=d);
+    # sns.lmplot(x="hydropathy_A", y="hydropathy_A", hue='positive_or_negative', data=d);
+
+    # sns.regplot(x="positive_or_negative", y="charge_A", data=X_train);
+
+    # sns.barplot(x="positive_or_negative", y="charge_A", hue="positive_or_negative", data=X_train);
+    # make class positive and negative couple
+
+    plt.show()
+
+    # df = pandas.DataFrame(X_train)
+    # columns = ['a','b','c','a','b','c']
+
+    # plt.hist(featuresTest)
+    # plt.hist(features2)
 # plt.figure(figsize=(13, 13))
 # plt.title("GridSearchCV evaluating using multiple scorers simultaneously",
 #           fontsize=16)
@@ -494,7 +567,7 @@ if CROSSVALIDATION:
 ############## DO PREDICTION FOR  TEST SET  + Export results
 
 
-if not CROSSVALIDATION:
+if not CROSSVALIDATION and not PLOTDATA:
 
     nbFeatures = features3.shape[0]
 
@@ -579,9 +652,7 @@ if not CROSSVALIDATION:
 #résultat full data set  0.537194473964 de computation 320.96s] avec 2 features par prot => seq
 #0.529224229543 with just mean
 #0.515409139214 with max
-# plt.hist(features)
-# plt.hist(features2)
-# plt.show()
+
 
 
 # print(len(dataBrutePositive))
