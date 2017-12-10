@@ -5,6 +5,8 @@ import pandas
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+
 from sklearn import svm
 import random
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -35,11 +37,15 @@ from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
 import time
 import datetime
+from ast import literal_eval
 startTime = time.time()
 hydropathy = { 'A': 1.8,'R':-4.5,'N':-3.5,'D':-3.5,'C': 2.5,
         'Q':-3.5,'E':-3.5,'G':-0.4,'H':-3.2,'I': 4.5,
         'L': 3.8,'K':-3.9,'M': 1.9,'F': 2.8,'P':-1.6,
         'S':-0.8,'T':-0.7,'W':-0.9,'Y':-1.3,'V': 4.2 }
+
+# def path(path):
+#     return  open(os.path.join(os.path.dirname(__file__), path))
 # RMN recurent neural network
 #keras =>
 #https://keras.io/layers/recurrent/
@@ -146,6 +152,10 @@ def getFeatures(data,train=True):
     dataHydropathy=[]
     datatension=[]
     dataCharge=[]
+    dataLength=[]
+    hydro_smooth_data = []
+    hydro_smooth_pos_data = []
+    hydro_smooth_neg_data = []
     listSeq=[]
     for record in data:
         seq =record.seq.tostring()
@@ -153,33 +163,87 @@ def getFeatures(data,train=True):
         hydropathySequence=[]
         tensionSequence=[]
         chargeSequence=0
+
         seqSize=len(seq)
+        dataLength.append(seqSize)
+        # seq2=""
         for residue in seq: #X for unknow amino acid residue and U for selenocysteine
             if(residue!=  'X' and residue!=  'U'):
-                # chargeSequence += calculateChargeAminoAcid(7,residue)
+                # seq2+=residue
+                chargeSequence += calculateChargeAminoAcid(7,residue)
+                # if(hydropathy[residue] > 0):
                 hydropathySequence.append(hydropathy[residue])
-                tensionSequence.append(tension[residue]/seqSize)
+                # else:
+                #     hydropathySequence.append(0)
+                tensionSequence.append(tension[residue])
         # np.append(dataCharge,chargeSequence)
         # np.append(dataHydropathy,hydropathySequence)
         # np.append(datatension,tensionSequence)
         # print(datatension)
-        dataCharge.append(calculateCharge(7.35,seq))
+        # dataCharge.append(calculateCharge(7.35,seq))
         dataHydropathy.append(hydropathySequence)
         datatension.append(tensionSequence)
+        dataCharge.append(chargeSequence)
 
+        hydro_pos = []
+        hydro_neg = []
+        hydro_both = []
+        window_size = 21
+        half_window = (window_size-1)//2
+        num_residues = len(hydropathySequence)
+        for i in range(half_window, num_residues-half_window):
+            average_value = 0.0
+            for j in range(-half_window, half_window+1):
+                average_value += hydropathySequence[i+j]
+            # if(average_value > 0):
+                # hydropathySequence.append(average_value) # 0.0973986680132
+            hydro_both.append(average_value)
+            if(average_value > 0):
+                hydro_pos.append(average_value)
+            else:
+                hydro_pos.append(0)
+
+            if(average_value < 0):
+                hydro_neg.append(average_value)
+            else:
+                hydro_neg.append(0)
+            # else:
+            #     hydropathySequence.append(0)
+
+        # hydro_smooth_data.append(sum(hydropathySequence)/num_residues)
+        hydro_smooth_data.append(hydro_both)
+        hydro_smooth_pos_data.append(hydro_pos)
+        hydro_smooth_neg_data.append(hydro_neg)
+        # from Bio.SeqUtils.ProtParam import ProteinAnalysis
+        # print(seq)
+        # analysed_seq = ProteinAnalysis(seq2)
+        # hydro_smooth_data.append(analysed_seq.gravy())
 
     # print("min : " + str(len(min(listSeq))))
 
-    window_size = 16
-    half_window = (window_size-1)//2
+
+    # YList.append(sum(y_data)/len(y_data))
     # for seq in dataCharge: # liste avec valeur hydropathy => lissage des valeurs
-    #     features.append(sum(seq)/len(seq))
-    for tensionSeq,hydropathySeq,chargeSeq in zip(datatension,dataHydropathy,dataCharge): # liste avec valeur hydropathy => lissage des valeurs
-        features=[]
-        features.append(sum(tensionSeq)/len(tensionSeq)) # 0.568for 500 pairs
+    #     features.append(sum(seq)/len(seq)) #REPLACE hydro_smooth_data with dataHydropathy
+    for tensionSeq,hydropathySeq,hydropos,hydroneg,chargeSeq, length in zip(datatension,hydro_smooth_data,hydro_smooth_pos_data,hydro_smooth_neg_data,dataCharge,dataLength): # liste avec valeur hydropathy => lissage des valeurs
+        features=[] # PARAMETER
+        # features.append(sum(tensionSeq)) # 0.568for 500 pairs
+        # features.append(chargeSeq/len(tensionSeq))  #0.596 for 1000 pairs
+        features.append(sum(tensionSeq)) # 0.568for 500 pairs
         features.append(chargeSeq)  #0.596 for 1000 pairs
-        features.append(sum(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
+        # features.append(sum(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
+        # features.append(sum(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
+        features.append(sum(hydropathySeq)) #54 % for 1000 pairs alone
+        features.append(sum(hydropos)) #54 % for 1000 pairs alone
+        features.append(sum(hydroneg)) #54 % for 1000 pairs alone
+        features.append(length) #54 % for 1000 pairs alone
+        # features.append(sum(hydropathySeq)/len(hydropathySeq)) #54 % for 1000 pairs alone
         YList.append(features)
+
+
+
+
+
 
     pairsSeq = []
     for i in range(0,len(listSeq),2):
@@ -189,17 +253,11 @@ def getFeatures(data,train=True):
     # for seq in dataHydropathy: # liste avec valeur hydropathy => lissage des valeurs
     #     features.append(sum(seq)/len(seq))
 
-        # num_residues = len(seq)
-
-        # hydro_smooth_data = []
+        #
 
 
-        # for i in range(half_window, num_residues-half_window):
-        #     average_value = 0.0
-        #     for j in range(-half_window, half_window+1):
-        #         average_value += seq[i+j]
-        #     hydro_smooth_data.append(average_value / window_size)
-        # YList.append(sum(y_data)/len(y_data))
+
+
 
         # YList.append([max(y_data)/len(y_data)] )
         # features.append(max(seq)/len(seq))
@@ -213,10 +271,16 @@ def getFeatures(data,train=True):
         # YList.append(sum(seq)/len (seq))
 
     pairs = []
+    # pairsHydroSEQ_A=[]
+    # pairsHydroSEQ_B=[]
+
     for i in range(0,len(YList),2):
         pairs.append(YList[i]+YList[i+1])
+        # pairsHydroSEQ_A.append(hydro_smooth_data[i])
+        # pairsHydroSEQ_B.append(hydro_smooth_data[i+1])
     print(YList)
-    X = np.array(pairs).reshape(-1,len(pairs[0])) # formation en pairs .reshape(-1, 1)
+    # X = np.array(pairs).reshape(-1,len(pairs[0])) # formation en pairs .reshape(-1, 1)
+    X = np.array(pairs)
 
 
     if ( TFIDF) :
@@ -228,17 +292,24 @@ def getFeatures(data,train=True):
 
 
         final = sparse.hstack((X, tfidf_matrix))
-        column = ['tension_A', 'charge_A', 'hydropathy_A','tension_B', 'charge_B', 'hydropathy_B','TFIDF' ]
+        column = ['tension_A', 'charge_A', 'hydropathy_A','len_A','tension_B', 'charge_B', 'hydropathy_B','len_B','TFIDF', ]
         # X = pandas.DataFrame(final.toarray()) #,  columns=column
         # X = pandas.SparseDataFrame(final.toarray()) #,  columns=column
         # print(type(final))
         # print(final)
         return final
     else:
-        column = ['tension_A', 'charge_A', 'hydropathy_A','tension_B', 'charge_B', 'hydropathy_B', ]
-        if(PLOTDATA):
-            X = pandas.DataFrame(X,  columns=column)
-        return X
+        column = ['tension_A', 'charge_A', 'hydropathy_both_A','hydropathy_pos_A','hydropathy_neg_A','len_A',
+                  'tension_B', 'charge_B', 'hydropathy_both_B','hydropathy_pos_B','hydropathy_neg_B','len_B']
+        X2 = pandas.DataFrame(X,  columns=column)
+        add_features_dataframe(X2)
+        # if(not (PLOTDATA or CROSSVALIDATION) ):
+        #     X2 = X2[['hydro_cat','charge_cat','tension_cat']]
+        # X = X[['hydro_cat']]
+        # X2['hydropathySeq_A'] = pandas.Series(pairsHydroSEQ_A)
+        # X2['hydropathySeq_B'] = pandas.Series(pairsHydroSEQ_B)
+        # X2['hydropathySeq'] = pandas.Series(dataHydropathy)
+        return X2
 
 
 # generator = SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta")
@@ -259,65 +330,191 @@ def read(file,number=-1):
 
     return data
 
-clf = RandomForestClassifier(max_depth=None, random_state=0,n_jobs=-1,n_estimators=300,bootstrap=False,max_features='sqrt',oob_score = False, verbose = 0, min_samples_leaf=2,min_samples_split=2)
-# clf = RandomForestClassifier(max_depth=200, random_state=0,n_jobs=-1,n_estimators=400,bootstrap=False,max_features='auto',oob_score = False, verbose = 0)
+import math
+chargeValue = 3
+
+def label_hydro(row, val = chargeValue):
+    return row['hydropathy_both_A']*row['hydropathy_both_B']
+
+def label_hydro_pos(row, val = chargeValue):
+    # return (row['hydropathy_pos_A']+row['hydropathy_pos_B'])**2/(row['len_B'] +row['len_A'] ) #  TODO
+    return (row['hydropathy_pos_A']*row['hydropathy_pos_B'])/(row['len_B'] +row['len_A'] ) #  TODO
+    # return (row['hydropathy_pos_A']**2/row['len_A'])  *  (row['hydropathy_pos_B']**2/row['len_B'] ) #  TODO
+
+    # return (row['hydropathy_pos_A']*row['hydropathy_pos_B'])/(row['len_B'] *row['len_A'] ) #  TODO
+
+def label_hydro_neg(row, val = chargeValue):
+    # return (row['hydropathy_neg_A']+row['hydropathy_neg_B'])**2/(row['len_B'] +row['len_A'] ) #  TODO
+    return (row['hydropathy_neg_A']*row['hydropathy_neg_B'])/(row['len_B'] +row['len_A'] ) #  TODO
+    # return (row['hydropathy_neg_A']**2/row['len_A'])  *  (row['hydropathy_neg_B']**2/row['len_B'] ) #  TODO
+
+# aur 0.524866666667 when >0 0.494715555556 when <0 . 0.478262222222 if all
+
+
+
+def label_hydro_neg_normalize(row, val = chargeValue):
+    # return (row['hydropathy_neg_A']*row['hydropathy_neg_B'])/row['len_B']
+    return (row['hydropathy_neg_A']**2/row['len_A'])  *  (row['hydropathy_neg_B']**2/row['len_B'] ) #  TODO
+    # return (row['hydropathy_neg_A']row['hydropathy_neg_B'])**2/(row['len_B'] +row['len_A'] ) #  TODO
+    # -0.0986538362274 avec carré
+    #0.0380956896011 sans carré
+    #0.06569190886 sans divisé par len
+    # 0.0373495468672 divisé et mettre tout au carré
+    # return (row['hydropathy_neg_A']*row['hydropathy_neg_B'])/len(row['length'])
+# aur 0.524866666667 when >0 0.494715555556 when <0 . 0.478262222222 if all
+def label_hydro_pos_normalize(row, val = chargeValue):
+    # return (row['hydropathy_pos_A']/row['len_A'])  *  (row['hydropathy_pos_B']/row['len_B'] ) #  TODO
+    # return (row['hydropathy_pos_A']*row['hydropathy_pos_B'])**2/(row['len_B'] +row['len_A'] ) #  TODO
+    return (row['hydropathy_pos_A']**2/row['len_A'])  *  (row['hydropathy_pos_B']**2/row['len_B'] ) #  TODO
+
+    # avec caré 0.077923552692
+    #avec just div 0.138665348195
+    #
+    # return (row['hydropathy_pos_A']*row['hydropathy_pos_B'])/len(row['length'])
+    #with add 0.5468
+    #aur 0.515026666667 with coulon
+    #aur 0.509186666667 with div by length of sequence
+
+
+def label_tension(row, val = chargeValue):
+    # return row['tension_A'] * row['tension_B'] #0.0786316120284  # inversé 0.0563729603192
+    # return (row['tension_A']+row['tension_B'])**2/(row['len_B'] +row['len_A'] ) #0.126699067382  #dataset inversé 0.0246951352777 avec len
+    return (row['tension_A']+row['tension_B'])/(row['len_B'] +row['len_A'] ) #0.126699067382  #dataset inversé 0.0246951352777 avec len 0.042138007757
+
+    #aur 0.529897777778  with *
+
+def label_charge(row, val = chargeValue):
+    return (row['charge_A'])*(row['charge_B'])/(row['len_B'] +row['len_A'] ) #0.0814675199656  # dataset inversé 0.0463440044032 sans len et avec 0.069455631278
+    # return (row['charge_A']+row['charge_B'])**2/(row['len_B'] +row['len_A'] ) #0.0336219791304
+    # return (row['charge_A']+row['charge_B'])**2 #0.0790310621961
+    # return (row['charge_A']*row['charge_B'])**2 #0.0490686656137
+    # return ( (row['charge_A']/row['len_A']) * (row['charge_B']/row['len_B']) ) # 0.050188599327
+
+
+
+def label_hydro_score_negatif(row, val = chargeValue):
+    return row['hydropathySeq_A']
+    # return literal_eval(row['hydropathySeq_A'])*literal_eval(row['hydropathySeq_B'])
+    # return sum(row['hydropathySeq_A'])*sum(row['hydropathySeq_B'])
+
+
+# def label_hydro_score_positif(row, val = chargeValue):
+#     return row['hydropathySeq_A']*row['hydropathySeq_B']
+
+def add_features_dataframe(d):
+    import io
+
+    categorieCharge = d.apply (lambda row: label_charge(row,0.1),axis=1)
+    categorieHydro = d.apply (lambda row: label_hydro(row,0.1),axis=1)
+    categorieHydroPos = d.apply (lambda row: label_hydro_pos(row,0.1),axis=1)
+    categorieHydroNeg = d.apply (lambda row: label_hydro_neg(row,0.1),axis=1)
+    categorieTension = d.apply (lambda row: label_tension(row,0.1),axis=1)
+    # d['hydropathySeq_A']=d['hydropathySeq_A'].apply((lambda x:pandas.eval(x)))#    )eval(d['hydropathySeq_A'])
+    # d['hydropathySeq_A']=pandas.eval(d['hydropathySeq_A'],parser='pandas',target=list)
+
+    # apply
+    # print(type(d.eval('hydropathySeq_A')[0]))
+    # print(type( d['hydropathySeq_A'][0]))
+
+    # print(type(d['hydropathySeq_A'][0]))
+    #
+    # d['hydropathySeq_A'] =d['hydropathySeq_A'].apply(ast.literal_eval)
+    # d['hydropathySeq_B'] =d['hydropathySeq_B'].apply(ast.literal_eval))
+    # print(type(d['hydropathySeq_A'][0]))
+    # raise
+    # categorieHydroNegatif = d.apply (lambda row: label_hydro_score_negatif(row),axis=1)
+
+    # print(categorieHydroNegatif)
+    d['charge_cat'] = categorieCharge
+    d['hydro_cat'] = categorieHydro
+    d['hydro_pos_cat'] = categorieHydroPos
+    d['hydro_neg_cat'] = categorieHydroNeg
+    d['tension_cat'] = categorieTension
+    # d['hydro_neg_cat'] = categorieHydroNegatif
+    return d
+
+# clf = RandomForestRegressor(max_depth=None, random_state=0,n_jobs=-1,n_estimators=300,bootstrap=False,max_features='sqrt',oob_score = False, verbose = 0, min_samples_leaf=2,min_samples_split=2)
+# clf = RandomForestRegressor(max_depth=None, random_state=0,n_jobs=-1,n_estimators=300,bootstrap=False,max_features='sqrt',oob_score = False, verbose = 0, min_samples_leaf=2,min_samples_split=2)
+
+clf = RandomForestClassifier(max_depth=None, random_state=0,n_jobs=-1,n_estimators=100,bootstrap=True,max_features='auto',oob_score = True, verbose = 0)
 
 CROSSVALIDATION = False
 GRIDVALIDATION = False
-DATASET_E = False  ## DATASET E for testing or split dataset A and B for training and testing
+DATASET_E = True  ## DATASET E for testing or split dataset A and B for training and testing
 dataSetSize = -1
 TFIDF=False
-PLOTDATA = True
+PLOTDATA = False
+useCache = False
+PREDICT=False
 # dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
-dataBrutePositive = read("Supp-A-prunned.txt",3000 ) # size 73260
-dataBruteNegative = read("Supp-B-prunned.txt",3000 ) # size 72960 #TOTAL 146 220
+if not useCache:
 
-print("data dataBrutePositive : " +str(len(dataBrutePositive)))
-print("data dataBruteNegative : " +str(len(dataBruteNegative)))
+    dataBrutePositive = read("Supp-A-prunned.txt",20000 ) # size 73260
+    dataBruteNegative = read("Supp-B-prunned.txt",20000 ) # size 72960 #TOTAL 146 220
 
-def mergeInterlacing(list1,list2, y1,y2):
-    X = [None]*(len(list1)+len(list2))
-    Y = [None]*(len(y1)+len(y2))
-    X[::2] = list1
-    X[1::2] = list2
-    Y[::2] = y1
-    Y[1::2] = y2
-    return X,Y
-dataMerge = None
-dataBruteTest= None
-y_true_merge = None
-yTest = None
+    print("data dataBrutePositive : " +str(len(dataBrutePositive)))
+    print("data dataBruteNegative : " +str(len(dataBruteNegative)))
 
-def split_list(a_list):
-    half = len(a_list)//2
-    return a_list[:half], a_list[half:]
+    def mergeInterlacing(list1,list2, y1,y2):
+        X = [None]*(len(list1)+len(list2))
+        Y = [None]*(len(y1)+len(y2))
+        X[::2] = list1
+        X[1::2] = list2
+        Y[::2] = y1
+        Y[1::2] = y2
+        return X,Y
+    dataMerge = None
+    dataBruteTest= None
+    y_true_merge = None
+    yTest = None
 
-if CROSSVALIDATION: # merge positive and negative for cross validation
-    y=[1 for x in range(len(dataBrutePositive)//2)]
-    y2=[0 for x in range(len(dataBruteNegative)//2)]
-    dataMerge , y_true_merge = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
-else:
-    if(not DATASET_E): # Split positive and negative set in 2 for training and testing
+    def split_list(a_list):
+        half = len(a_list)//2
+        return a_list[:half], a_list[half:]
+
+    if CROSSVALIDATION: # merge positive and negative for cross validation
         y=[1 for x in range(len(dataBrutePositive)//2)]
         y2=[0 for x in range(len(dataBruteNegative)//2)]
-        X , Y = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
-        X_train, y_train  = split_list(X)
-        X_test, y_test = split_list(Y)
-        dataMerge = X_train
-        dataBruteTest = y_train
-        y_true_merge = X_test
-        yTest =y_test
-        print("size dataset for training : " + str(len(X_test)) )
-        print("size dataset for testing : " + str(len(y_test)) )
+        # dataMerge , y_true_merge = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
+        dataMerge = dataBrutePositive + dataBruteNegative
+        y_true_merge = y+y2
     else:
-        y=[1 for x in range(len(dataBrutePositive)//2)]
-        y2=[0 for x in range(len(dataBruteNegative)//2)]
-        dataMerge , y_true_merge = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
+        if(not DATASET_E): # Split positive and negative set in 2 for training and testing
+            y=[1 for x in range(len(dataBrutePositive)//2)]
+            y2=[0 for x in range(len(dataBruteNegative)//2)]
+            # X , Y = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
+            # print("hello")
+            # X_train, y_train  = split_list(X)
+            # X_test, y_test = split_list(Y)
+            # dataMerge = X_train
+            # dataBruteTest = y_train
+            # y_true_merge = X_test
+            #
+            # yTest =y_test
+            # print("size dataset for training : " + str(len(X_test)) )
+            # print("size dataset for testing : " + str(len(y_test)) )
+            dataMerge = dataBrutePositive + dataBruteNegative
+            y_true_merge = y+y2
+        else:
+            y=[1 for x in range(len(dataBrutePositive)//2)]
+            y2=[0 for x in range(len(dataBruteNegative)//2)]
+            # dataMerge , y_true_merge = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
+            # dataMerge , y_true_merge = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
+            dataMerge = dataBrutePositive + dataBruteNegative
+            y_true_merge = y+y2
+            dataBruteTest = read("Supp-E-prunned.txt",-1 )
+            yTest=[1 for x in range(len(dataBruteTest)//4)]+[0 for x in range(len(dataBruteTest)//4)]
+            print("Size Test set " + str(len(yTest)))
 
-        dataBruteTest = read("Supp-E-prunned.txt",-1 )
-        yTest=[1 for x in range(len(dataBruteTest)//4)]+[0 for x in range(len(dataBruteTest)//4)]
-        print("Size Test set " + str(len(yTest)))
+    featuresTrain_set = getFeatures(dataMerge) # training set
+    featuresTrain_set['positive_or_negative'] = pandas.Series(y_true_merge)
+    featuresTrain_set.to_csv('./train_data_with_features.csv', encoding='utf-8',index=False)
+
+    featuresTest_set= getFeatures(dataBruteTest)
+    featuresTest_set['positive_or_negative'] = pandas.Series(yTest)
+    featuresTest_set.to_csv('./test_data_with_features.csv', encoding='utf-8',index=False)
+
 
     # print(len(tab))
     # print(tab[1])
@@ -335,9 +532,50 @@ else:
 # print("data merge : " +str(len(dataMerge)))
 
 
-featuresTest = getFeatures(dataMerge)
-if(dataBruteTest):
-    features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
+
+__location__ = os.path.realpath(
+    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+def path(filename):
+    return  os.path.join(__location__, filename)
+
+
+import ast
+
+featuresTest_set = pandas.read_csv('test_data_with_features.csv')
+featuresTrain_set = pandas.read_csv('train_data_with_features.csv')
+# featuresTest_set = pandas.read_csv('train_data_with_features.csv')
+# featuresTrain_set = pandas.read_csv('test_data_with_features.csv')
+add_features_dataframe(featuresTrain_set)
+add_features_dataframe(featuresTest_set)
+
+
+print(featuresTrain_set)
+
+
+# if(dataBruteTest):
+#     features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
+
+
+
+# raise
+    # dataMerge = dataBrutePositive + dataBruteNegative
+    # y_true_merge = y+y2
+    # dataBruteTest = read("Supp-E-prunned.txt",-1 )
+    # yTest
+# column = ['tension_A', 'charge_A', 'hydropathy_A','tension_B', 'charge_B', 'hydropathy_B']
+# X = pandas.DataFrame(X,  columns=column)
+# add_features_dataframe(X)
+
+
+# raise
+
+# add_features_dataframe(featuresTest)
+# featuresTest = featuresTest[['hydro_cat','charge_cat','tension_cat']]
+
+# print(featuresTest)
+# featuresTest = featuresTest[['tension_cat']]
+
+# print(featuresTest)
 
 
 
@@ -368,8 +606,8 @@ if(dataBruteTest):
 
 # clf = svm.SVC()
 
-print("info1")
-print("features shapes :" + str(featuresTest.shape))
+# print("info1")
+# print("features shapes :" + str(featuresTest.shape))
 
 
 # print("y size : " +  )
@@ -440,7 +678,9 @@ if CROSSVALIDATION:
         # CROSS VALIDATION SCORE
         scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score),'Recall': make_scorer(recall_score),'f1': make_scorer(f1_score)}
 
-        scores2 = cross_validate(clf,X= featuresTest,y=np.array(y_true_merge),cv=5,scoring=scoring) # return_train_score=False,
+        featuresList = ['charge_cat','hydro_neg_cat','hydro_pos_cat','tension_cat']
+
+        scores2 = cross_validate(clf,X= featuresTrain_set[featuresList],y=featuresTrain_set['positive_or_negative'],cv=20,scoring=scoring) # return_train_score=False,
         print(scores2)
 
         print("Cross validate in 5 k mean ")
@@ -449,35 +689,111 @@ if CROSSVALIDATION:
         print("mean test_Recall  " + str( mean( scores2['test_Recall']))   )
         print("mean test_f1  " + str( mean( scores2['test_f1']))   )
         print("mean test aur_roc  " + str( mean( scores2['test_AUC']))   )
+
+
+#10 fois
+
+#         mean test accuracy  0.59
+# mean test_Recall  0.568
+# mean test_f1  0.580417920043
+# mean test aur_roc  0.624837777778
+# [Finished in 37.89s]
         # print(mean(prediction2))
 # print(results)
 
-def label_charge(row):
-    if row['charge_A'] >=20 and row['charge_B'] < 20 :
-        return 1
-    elif  row['charge_A'] <=20 and row['charge_B'] > 20 :
-        return 1
-    else:
-        return 0
+# ###
+# mean fit time 2.49424351454
+# mean test accuracy  0.59
+# mean test_Recall  0.562666666667
+# mean test_f1  0.577898179683
+# mean test aur_roc  0.624835555556
+# [Finished in 89.886s]
+
+    # if (row['charge_A'])*(row['charge_B']) <=0.2 :
+    #     return 1
+    #     return (row['charge_A'])*(row['charge_B'])
+    # elif  row['charge_A'] <val and row['charge_B'] > val :
+    #     return 1
+    #     return (row['charge_A'])*(row['charge_B'])
+    # else:
+    #     return  0
 
 
 if (PLOTDATA):
     import matplotlib.pyplot as plt
     import seaborn as sns
-    X_train = featuresTest
-    Y_train = y_true_merge
-    X_train['positive_or_negative'] = pandas.Series(Y_train)
+    X_train = featuresTrain_set
+    # Y_train = y_true_merge
+    # X_train['positive_or_negative'] = pandas.Series(Y_train)
     d=X_train
-    # pandas.DataFrame.plot.scatter
-    d["chargeRatio"]=(d.charge_A/d.charge_B)
-    categorieCharge = d.apply (lambda row: label_charge(row),axis=1)
+    # add_features_dataframe(X_train)
 
-    d['charge_cat'] = categorieCharge
-    print(X_train)
-    print(categorieCharge)
+    hydroPos_normalize = d.apply(lambda row: label_hydro_pos_normalize(row),axis=1)
+    hydroNeg_normalize = d.apply(lambda row: label_hydro_neg_normalize(row),axis=1)
+
+    print("Correlation of hydropathy " + str(np.corrcoef(X_train['positive_or_negative'],X_train['hydro_cat'])[0][1])   )
+    print("Correlation of hydropathy negatif " + str(np.corrcoef(X_train['positive_or_negative'],X_train['hydro_neg_cat'])[0][1])   )
+    print("Correlation of hydropathy positif " + str(np.corrcoef(X_train['positive_or_negative'],X_train['hydro_pos_cat'])[0][1]))
+    print("Correlation of hydropathy normalisé negatif " + str(np.corrcoef(X_train['positive_or_negative'],hydroNeg_normalize)[0][1])   )
+    print("Correlation of hydropathy normalisé positif " + str(np.corrcoef(X_train['positive_or_negative'],hydroPos_normalize)[0][1])   )
+    print("Correlation between hydropathy normalisé  " + str(np.corrcoef(hydroNeg_normalize,hydroPos_normalize)[0][1])   )
+    print("Correlation between hydropathy   " + str(np.corrcoef(X_train['hydro_neg_cat'],X_train['hydro_pos_cat'])[0][1])   )
+
+    print("Correlation of charge " + str(np.corrcoef(X_train['positive_or_negative'],X_train['charge_cat'])[0][1])   )
+    print("Correlation of thension " + str(np.corrcoef(X_train['positive_or_negative'],X_train['tension_cat'])[0][1])   )
+
+    # print(categorieTension = d.apply (lambda row: label_tension(row,0.1),axis=1)
+
+
+    # lop = np.corrcoef(X_train['positive_or_negative'],hydroNeg_normalize)[0][1]
+    # print(lop)
+    # print("Correlation of hydropathy negatif normalize " + str(np.corrcoef(X_train['positive_or_negative'],hydroNeg_normalize) [0][1])   )
+    # print("Correlation of hydropathy positif normalize" + str(np.corrcoef(X_train['positive_or_negative'],hydroPos_normalize)  [0][1])   )
+
+
+    # print("Correlation of Charge-hydrophoby " + str(np.corrcoef(X_train['tension_B'],X_train['charge_B'])[0][1])    )
+    # print("Correlation of charge-charge " + str(np.corrcoef(X_train['charge_A'],X_train['charge_B'])[0][1])   )
+    # print(np.corrcoef(X_train['positive_or_negative'],X_train['charge_cat']))
+    # print(np.corrcoef(X_train['positive_or_negative'],X_train['tension_cat']))
+
+
+    # pandas.DataFrame.plot.scatter
+    # d["chargeRatio"]=(d.charge_A/d.charge_B)
+    # categorieCharge = d.apply (lambda row: label_charge(row,0.1),axis=1)
+    # categorieHydro = d.apply (lambda row: label_hydro(row,0.1),axis=1)
+    # categorieTension = d.apply (lambda row: label_tension(row,0.1),axis=1)
+    # #
+    # d['charge_cat'] = categorieCharge
+    # d['hydro_cat'] = categorieHydro
+    # d['tension_cat'] = categorieTension
+    # add_features_dataframe(d)
+    # print(abs(d["charge_A"].mean()))
+
+    # print(X_train)
+    # print(categorieCharge)
+    # pandas.DataFrame({'Positive': d.groupby('positive_or_negative').get_group(1).charge_cat,
+    #           'Negative':   d.groupby('positive_or_negative').get_group(0).charge_cat}).plot.hist(stacked=True)
+    # plt.show()
+    # pandas.DataFrame({'Positive': d.groupby('positive_or_negative').get_group(1).charge_hydro,
+    #           'Negative':   d.groupby('positive_or_negative').get_group(0).charge_hydro}).plot.hist(stacked=True)
+    # plt.show()
+
+    # sns.lmplot(x="charge_B", y="charge_A", hue="positive_or_negative",  data=d);
+    # sns.pointplot(x="positive_or_negative", y="hydro_cat",hue="positive_or_negative", data=X_train);
+    # plt.show()
+    # sns.pointplot(x="positive_or_negative", y="tension_cat",hue="positive_or_negative", data=X_train);
+    # plt.show()
+
+    # sns.swarmplot(x="charge_cat", y="charge_hydro", hue="positive_or_negative", data=X_train);
+    # pandas.DataFrame({'Positive': d.groupby('positive_or_negative').get_group(1).charge_tension,
+    #           'Negative':   d.groupby('positive_or_negative').get_group(0).charge_tension}).plot.hist(stacked=True)
+    # plt.show()
+    # sns.swarmplot(x="positive_or_negative", y="charge_cat", hue="positive_or_negative", data=X_train);
+
     # sns.distplot(x='charge_cat',hue='positive_or_negative', data = d);
     # sns.distplot(x='charge_cat', data = d);
     # plt.hist([d["chargeRatio"], d["positive_or_negative"]], color=['r','b'], alpha=0.5)
+    # sns.lmplot(x="categorieCharge", y="charge_B", hue="positive_or_negative",  data=d);
 
 
     # d.groupby('positive_or_negative').charge_A.hist(stacked=True)
@@ -486,24 +802,27 @@ if (PLOTDATA):
 
 
     # sns.distplot(x);
-
-    # sns.swarmplot(x="charge_A", y="tension_B", hue="positive_or_negative", data=X_train);
     # sns.countplot(x="charge_A", data=X_train, palette="Greens_d");
     # sns.regplot(x="chargeRatio", y="positive_or_negative", data=X_train);
-    sns.lmplot(x="charge_A", y="charge_B", hue="positive_or_negative",  data=d);
     # sns.lmplot(x="tension_A", y="tension_B", hue="positive_or_negative",  data=d);
     # sns.lmplot(x="charge_A",y="charge_B" ,hue="positive_or_negative",  data=d);
     # sns.regplot(x="charge_A", y="charge_B",data=d, lowess=True)
     # sns.lmplot(x="charge_A", y="charge_B", hue='positive_or_negative', data=d);
-    # sns.lmplot(x="tension_A", y="tension_A", hue='positive_or_negative', data=d);
-    # sns.lmplot(x="hydropathy_A", y="hydropathy_A", hue='positive_or_negative', data=d);
+    # sns.lmplot(x="charge_cat", y="positive_or_negative", hue='positive_or_negative', data=d);
+    # sns.lmplot(x="tension_A", y="tension_B", hue='positive_or_negative', data=d);
 
-    # sns.regplot(x="positive_or_negative", y="charge_A", data=X_train);
-
-    # sns.barplot(x="positive_or_negative", y="charge_A", hue="positive_or_negative", data=X_train);
+    # sns.distplot(d['charge_cat'])
+    # sns.pointplot(x="positive_or_negative", y="charge_cat", hue='positive_or_negative', data=d)
+    # sns.lmplot(x="charge_cat", y="hydropathy_B", hue='positive_or_negative', data=d);
+    # sns.countplot(x="charge_cat", data=X_train,hue='positive_or_negative', palette="Greens_d");
+    # sns.regplot(x="positive_or_negative", y="charge_cat", data=X_train);
+    print("corre")
+    # correlation_matrix = np.corrcoef(d[['charge_cat','positive_or_negative']].values)
+    # print(correlation_matrix)
+    # print(pandas.DataFrame(d['charge_cat']).corrwith(pandas.DataFrame(d['positive_or_negative'])))
+    # sns.barplot(x="positive_or_negative", y="charge_cat", hue="positive_or_negative", data=X_train);
     # make class positive and negative couple
 
-    plt.show()
 
     # df = pandas.DataFrame(X_train)
     # columns = ['a','b','c','a','b','c']
@@ -569,25 +888,27 @@ if (PLOTDATA):
 
 if not CROSSVALIDATION and not PLOTDATA:
 
-    nbFeatures = features3.shape[0]
+    # nbFeatures = features3.shape[0]
+    #
+    #
+    # print(len(yTest))
+    # featuresList = ['charge_cat','hydro_neg_cat','hydro_pos_cat','tension_cat']
+    # featuresList = ['hydro_neg_cat','hydro_pos_cat']
+    featuresList = ['charge_cat','hydro_neg_cat','hydro_pos_cat','tension_cat']
+
+    clf.fit(featuresTrain_set[featuresList],featuresTrain_set['positive_or_negative'] )
 
 
-    print(len(yTest))
+    prediction2 = clf.predict(featuresTest_set[featuresList])
 
-    clf.fit(featuresTest,y_true_merge )
-
-
-    prediction2 = clf.predict(features3)
-
-    print("data test : " +str(len(dataBruteTest)))
     #
     # print(prediction2)
-    print("SCORE : " + str(clf.score(features3,yTest)))
+    # print("SCORE : " + str(clf.score(features3,yTest)))
 
-    report = str(classification_report(yTest, prediction2,target_names= ["negative","positive"]))
+    report = str(classification_report(featuresTest_set['positive_or_negative'], prediction2,target_names= ["negative","positive"]))
     print(report) # support = nombre dans le Y test  mais pas la prediction
 
-    aur = str(roc_auc_score(yTest, prediction2))
+    aur = str(roc_auc_score(featuresTest_set['positive_or_negative'], prediction2))
     aur = "aur score " + aur + "\n"
     print(aur)
 
