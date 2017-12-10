@@ -450,8 +450,8 @@ PREDICT=False
 
 if not useCache:
 
-    dataBrutePositive = read("Supp-A-prunned.txt",20000 ) # size 73260
-    dataBruteNegative = read("Supp-B-prunned.txt",20000 ) # size 72960 #TOTAL 146 220
+    dataBrutePositive = read("Supp-A-prunned.txt",70000 ) # size 73260
+    dataBruteNegative = read("Supp-B-prunned.txt",70000 ) # size 72960 #TOTAL 146 220
 
     print("data dataBrutePositive : " +str(len(dataBrutePositive)))
     print("data dataBruteNegative : " +str(len(dataBruteNegative)))
