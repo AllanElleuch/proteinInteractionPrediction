@@ -49,8 +49,7 @@ hydropathy = { 'A': 1.8,'R':-4.5,'N':-3.5,'D':-3.5,'C': 2.5,
 # RMN recurent neural network
 #keras =>
 #https://keras.io/layers/recurrent/
-
-#Faire tfidf concaténer =>  les deux vecteur sur abscisse
+#Faire tfidf concaténer =>les deux vecteur sur abscisse
 #Permuter les valeurs bonne et mauvaise non col 1 et col2 mettre le plus faible en premier et le deuxième plus grand en premier
 #Entrainer dans un sens puis dans l'autre
 #ngram
@@ -443,8 +442,8 @@ GRIDVALIDATION = False
 DATASET_E = True  ## DATASET E for testing or split dataset A and B for training and testing
 dataSetSize = -1
 TFIDF=False
-PLOTDATA = False
-useCache = False
+PLOTDATA = True
+useCache = True
 PREDICT=False
 # dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
 
