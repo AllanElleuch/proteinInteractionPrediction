@@ -43,6 +43,7 @@ hydropathy = { 'A': 1.8,'R':-4.5,'N':-3.5,'D':-3.5,'C': 2.5,
         'Q':-3.5,'E':-3.5,'G':-0.4,'H':-3.2,'I': 4.5,
         'L': 3.8,'K':-3.9,'M': 1.9,'F': 2.8,'P':-1.6,
         'S':-0.8,'T':-0.7,'W':-0.9,'Y':-1.3,'V': 4.2 }
+import AAscript
 
 # def path(path):
 #     return  open(os.path.join(os.path.dirname(__file__), path))
@@ -102,7 +103,7 @@ tension = {
 
 }
 
-
+AASCRIPT=True
 # for record in SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta"):
 #     data.append(record)
 # data = list(SeqIO.parse("C:/Users/escroc/Documents/projectBioInformatique/fasta20171101.seq", "fasta"))
@@ -138,12 +139,18 @@ def splitString(x,i):
     for i in range(0,len(x),k):
         res=res+x[i:i+k]+" "
     return res
-
+from operator import add
 def pairSeq(listSeq):
     pairsSeq = []
     for i in range(0,len(listSeq),2):
         pairsSeq.append(listSeq[i]+listSeq[i+1])
     return listSeq
+
+def pairSeqMap(listSeq):
+    pairsSeq = []
+    for i in range(0,len(listSeq),2):
+        pairsSeq.append(np.multiply(listSeq[i], listSeq[i+1]) )
+    return pairsSeq
 
 
 def getFeatures(data,train=True):
@@ -156,7 +163,14 @@ def getFeatures(data,train=True):
     hydro_smooth_pos_data = []
     hydro_smooth_neg_data = []
     listSeq=[]
+    protNumber=0
+    dataAAINDEX = []
+    AAindexList=[]
+
     for record in data:
+        protNumber+=1
+        if(protNumber % 50 == 0):
+            print("Protein number : " + str(protNumber))
         seq =record.seq.tostring()
         listSeq.append(splitString(seq,8))
         hydropathySequence=[]
@@ -175,6 +189,17 @@ def getFeatures(data,train=True):
                 # else:
                 #     hydropathySequence.append(0)
                 tensionSequence.append(tension[residue])
+
+        if AASCRIPT:
+            aaIndex = np.divide(AAscript.getIndexSeq(seq),seqSize)
+            data = []
+            # print(aaIndex)
+            # for item in aaIndex:
+            #     data.append(max(item))
+
+            AAindexList.append(aaIndex)
+
+
         # np.append(dataCharge,chargeSequence)
         # np.append(dataHydropathy,hydropathySequence)
         # np.append(datatension,tensionSequence)
@@ -243,11 +268,9 @@ def getFeatures(data,train=True):
 
 
 
-
     pairsSeq = []
     for i in range(0,len(listSeq),2):
         pairsSeq.append(listSeq[i]+listSeq[i+1])
-    pairs = pairSeq(listSeq)
 
     # for seq in dataHydropathy: # liste avec valeur hydropathy => lissage des valeurs
     #     features.append(sum(seq)/len(seq))
@@ -308,6 +331,44 @@ def getFeatures(data,train=True):
         # X2['hydropathySeq_A'] = pandas.Series(pairsHydroSEQ_A)
         # X2['hydropathySeq_B'] = pandas.Series(pairsHydroSEQ_B)
         # X2['hydropathySeq'] = pandas.Series(dataHydropathy)
+
+        if(AASCRIPT):
+            print("SIZE BEFORE " + str(len(AAindexList)))
+            AAindexList = pairSeqMap(AAindexList)
+            print("SIZE AFTER " + str(len(AAindexList)))
+
+            indices = AAscript.getIndicesUsed()
+            dico = {}
+            for indice in indices:
+                dico[indice]=[]
+
+            for item in AAindexList:
+                for i in range(len(indices)):
+                    # print(indices[i])
+                    # print(dico)
+                    # print(dico[indices[i]])
+                    # print(AAindexList)
+                    dico[indices[i]].append(item[i])
+            AAindexList=dico
+
+
+
+            # for i in range(len(indices)):
+            #     indice = listIndice[i]
+            #     valeurIndex = AAindexList[indice]
+            featuresList = []
+            columns = []
+            for key,value in dico.items():
+                X2[key]= pandas.Series(value)
+            # res=[]
+            # for indice in indices:
+            #     res.append(dico[indice])
+            # AAindexList=res
+
+    # print(AAindexList.shape)
+
+
+
         return X2
 
 
@@ -437,15 +498,18 @@ def add_features_dataframe(d):
 
 clf = RandomForestClassifier(max_depth=None, random_state=0,n_jobs=-1,n_estimators=100,bootstrap=True,max_features='auto',oob_score = True, verbose = 0)
 
-CROSSVALIDATION = False
+CROSSVALIDATION = True
 GRIDVALIDATION = False
 DATASET_E = True  ## DATASET E for testing or split dataset A and B for training and testing
 dataSetSize = -1
 TFIDF=False
 PLOTDATA = True
-useCache = True
+useCache = False
+SAVE = False
 PREDICT=False
 # dataSetSizeTraining = dataSetSize//2 if dataSetSize >=0 else -1
+featuresList = ['charge_cat','hydro_neg_cat','hydro_pos_cat','tension_cat','KARS160106','MIYS990101','CASG920101','FAUJ880111','FAUJ880112']
+# featuresList = ['charge_cat','hydro_neg_cat','hydro_pos_cat','tension_cat']
 
 if not useCache:
 
@@ -502,17 +566,20 @@ if not useCache:
             # dataMerge , y_true_merge = mergeInterlacing ( dataBrutePositive , dataBruteNegative ,y , y2 )
             dataMerge = dataBrutePositive + dataBruteNegative
             y_true_merge = y+y2
-            dataBruteTest = read("Supp-E-prunned.txt",-1 )
+            dataBruteTest = read("Supp-E-prunned.txt",50 ) # TOTO A CHANGER
             yTest=[1 for x in range(len(dataBruteTest)//4)]+[0 for x in range(len(dataBruteTest)//4)]
             print("Size Test set " + str(len(yTest)))
 
     featuresTrain_set = getFeatures(dataMerge) # training set
+
     featuresTrain_set['positive_or_negative'] = pandas.Series(y_true_merge)
+    print("SAUVEGARDE DU FICHIER train_data_with_features.csv ")
     featuresTrain_set.to_csv('./train_data_with_features.csv', encoding='utf-8',index=False)
 
-    featuresTest_set= getFeatures(dataBruteTest)
-    featuresTest_set['positive_or_negative'] = pandas.Series(yTest)
-    featuresTest_set.to_csv('./test_data_with_features.csv', encoding='utf-8',index=False)
+
+    # featuresTest_set= getFeatures(dataBruteTest)
+    # featuresTest_set['positive_or_negative'] = pandas.Series(yTest)
+    # featuresTest_set.to_csv('./test_data_with_features.csv', encoding='utf-8',index=False)
 
 
     # print(len(tab))
@@ -541,15 +608,15 @@ def path(filename):
 import ast
 
 featuresTest_set = pandas.read_csv('test_data_with_features.csv')
-featuresTrain_set = pandas.read_csv('train_data_with_features.csv')
-# featuresTest_set = pandas.read_csv('train_data_with_features.csv')
-# featuresTrain_set = pandas.read_csv('test_data_with_features.csv')
-add_features_dataframe(featuresTrain_set)
 add_features_dataframe(featuresTest_set)
 
 
-print(featuresTrain_set)
+# featuresTest_set = pandas.read_csv('train_data_with_features.csv')
+# featuresTrain_set = pandas.read_csv('test_data_with_features.csv')
 
+
+featuresTrain_set = pandas.read_csv('train_data_with_features.csv')
+add_features_dataframe(featuresTrain_set)
 
 # if(dataBruteTest):
 #     features3= getFeatures(dataBruteTest,train=False) # SUppose que données sont des pairs bout à bout
@@ -677,12 +744,12 @@ if CROSSVALIDATION:
         # CROSS VALIDATION SCORE
         scoring = {'AUC': 'roc_auc', 'Accuracy': make_scorer(accuracy_score),'Recall': make_scorer(recall_score),'f1': make_scorer(f1_score)}
 
-        featuresList = ['charge_cat','hydro_neg_cat','hydro_pos_cat','tension_cat']
+        # featuresList = ['charge_cat','hydro_neg_cat','hydro_pos_cat','tension_cat']
 
-        scores2 = cross_validate(clf,X= featuresTrain_set[featuresList],y=featuresTrain_set['positive_or_negative'],cv=20,scoring=scoring) # return_train_score=False,
+        scores2 = cross_validate(clf,X= featuresTrain_set[featuresList],y=featuresTrain_set['positive_or_negative'],cv=10,scoring=scoring) # return_train_score=False,
         print(scores2)
 
-        print("Cross validate in 5 k mean ")
+        print("Cross validate in 10 k mean ")
         print("mean fit time " + str( mean( scores2['fit_time']))   )
         print("mean test accuracy  " + str( mean( scores2['test_Accuracy']))   )
         print("mean test_Recall  " + str( mean( scores2['test_Recall']))   )
@@ -717,6 +784,10 @@ if CROSSVALIDATION:
     # else:
     #     return  0
 
+def printCorrelation(indice,coef):
+
+    print("Correlation of "+indice + " : "+ str(coef)   )
+
 
 if (PLOTDATA):
     import matplotlib.pyplot as plt
@@ -739,8 +810,34 @@ if (PLOTDATA):
     print("Correlation between hydropathy   " + str(np.corrcoef(X_train['hydro_neg_cat'],X_train['hydro_pos_cat'])[0][1])   )
 
     print("Correlation of charge " + str(np.corrcoef(X_train['positive_or_negative'],X_train['charge_cat'])[0][1])   )
-    print("Correlation of thension " + str(np.corrcoef(X_train['positive_or_negative'],X_train['tension_cat'])[0][1])   )
+    print("Correlation of tension " + str(np.corrcoef(X_train['positive_or_negative'],X_train['tension_cat'])[0][1])   )
 
+
+    # AAindexList = np.array(AAindexList).reshape((len(listIndice),))
+    # print(AAindexList.shape)
+    listIndice = AAscript.getIndicesUsed()
+
+    for i in range(len(listIndice)):
+        indice = listIndice[i]
+        valeurIndex = d[indice]
+        correlation = np.corrcoef(X_train['positive_or_negative'],valeurIndex)[0][1]
+        printCorrelation(indice,correlation)
+
+# Correlation of hydropathy 0.05225263945
+# Correlation of hydropathy negatif 0.149693299679
+# Correlation of hydropathy positif 0.181894137964
+# Correlation of hydropathy normalis� negatif 0.0555663470778
+# Correlation of hydropathy normalis� positif 0.121700892231
+# Correlation between hydropathy normalis�  -0.00196592230574
+# Correlation between hydropathy   -0.0863537413635
+# Correlation of charge 0.0708508589547
+# Correlation of tension 0.0429862715692
+# Correlation of KARS160114 : -0.0307599366609
+# Correlation of KARS160106 : -0.0903915995469
+# Correlation of MIYS990101 : 0.120855883322
+# Correlation of CASG920101 : -0.0469612913214
+# Correlation of FAUJ880111 : -0.244421706324
+# Correlation of FAUJ880112 : 0.0662432266328
     # print(categorieTension = d.apply (lambda row: label_tension(row,0.1),axis=1)
 
 
